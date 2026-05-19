@@ -83,6 +83,13 @@ class MHDTimetablePanel extends HTMLElement {
     return "vp_" + Math.random().toString(36).slice(2, 7);
   }
 
+  _cardYaml() {
+    const slug = (this._data?.stop || "název_zastávky")
+      .toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+    return `type: custom:mhd-timetable-card\nentity: sensor.mhd_${slug}`;
+  }
+
   _vacationPeriods() { return this._data?.vacation_periods || []; }
   _vacationGroups()  { return this._data?.vacation_groups  || []; }
 
@@ -212,9 +219,8 @@ class MHDTimetablePanel extends HTMLElement {
         <p style="font-size:0.88em;color:var(--secondary-text-color);margin:0 0 8px">
           Dashboard → upravit → Přidat kartu → Manuální → vložit:
         </p>
-        <div class="help-code" id="help-card-yaml">type: custom:mhd-timetable-card
-entity: sensor.mhd_název_zastávky</div>
-        <button class="help-copy-btn" data-copy="help-card-yaml">Kopírovat</button>
+        <div class="help-code" id="help-card-yaml">${this._cardYaml()}</div>
+        <button class="help-copy-btn">Kopírovat</button>
       </div>`;
   }
 
@@ -462,16 +468,26 @@ entity: sensor.mhd_název_zastávky</div>
       this._render();
     });
 
-    root.querySelector(".help-copy-btn")?.addEventListener("click", btn => {
-      const targetId = btn.target.dataset.copy;
-      const text = root.getElementById(targetId)?.textContent?.trim();
+    root.querySelector(".help-copy-btn")?.addEventListener("click", e => {
+      const text = root.querySelector("#help-card-yaml")?.textContent?.trim();
       if (!text) return;
-      navigator.clipboard?.writeText(text).then(() => {
-        btn.target.textContent = "Zkopírováno ✓";
-        setTimeout(() => { btn.target.textContent = "Kopírovat"; }, 2000);
-      }).catch(() => {
-        btn.target.textContent = "Kopírovat";
-      });
+      const btn = e.target;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => {
+          btn.textContent = "Zkopírováno ✓";
+          setTimeout(() => { btn.textContent = "Kopírovat"; }, 2000);
+        }).catch(() => { btn.textContent = "Kopírovat"; });
+      } else {
+        // Fallback for non-HTTPS or older browsers
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        btn.textContent = "Zkopírováno ✓";
+        setTimeout(() => { btn.textContent = "Kopírovat"; }, 2000);
+      }
     });
 
     root.querySelector(".stop-select")?.addEventListener("change", async e => {

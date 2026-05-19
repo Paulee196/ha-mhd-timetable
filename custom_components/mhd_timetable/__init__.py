@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import pathlib
+import uuid
 
 import voluptuous as vol
 from homeassistant.components import websocket_api
@@ -130,25 +131,21 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 
 async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> None:
-    """Add card JS to Lovelace resources storage if not already registered."""
+    """Add card JS to Lovelace resources storage (persistent, works across restarts)."""
     try:
-        lovelace = hass.data.get("lovelace")
-        if lovelace is None:
-            _LOGGER.debug("Lovelace not in hass.data, skipping resource registration")
+        store = Store(hass, 1, "lovelace_resources")
+        data = await store.async_load() or {"items": []}
+        items = data.setdefault("items", [])
+
+        if any(item.get("url") == url for item in items):
+            _LOGGER.debug("Lovelace resource already registered: %s", url)
             return
-        resources = getattr(lovelace, "resources", None)
-        if resources is None or not hasattr(resources, "async_create_item"):
-            return
-        if hasattr(resources, "async_load"):
-            await resources.async_load()
-        for item in resources.async_items():
-            if item.get("url") == url:
-                _LOGGER.debug("Lovelace resource already registered: %s", url)
-                return
-        await resources.async_create_item({"res_type": "module", "url": url})
-        _LOGGER.info("Lovelace resource registered automatically: %s", url)
+
+        items.append({"id": str(uuid.uuid4()), "type": "module", "url": url})
+        await store.async_save(data)
+        _LOGGER.info("Lovelace resource registered: %s", url)
     except Exception as exc:
-        _LOGGER.debug("Could not auto-register Lovelace resource: %s", exc)
+        _LOGGER.warning("Could not register Lovelace resource %s: %s", url, exc)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

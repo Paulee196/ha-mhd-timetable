@@ -61,25 +61,24 @@ class MHDTimetableCard extends HTMLElement {
   }
 
   _popupHTML(dep) {
-    const stops = dep.route ? dep.route.split(",").map(s => s.trim()) : [];
+    const stops = dep.route ? dep.route.split(",").map(s => s.trim()).filter(Boolean) : [];
+    const mins = dep.minutes_until;
+    const colorClass = mins <= 5 ? "cnt-red" : mins <= 10 ? "cnt-yellow" : "cnt-green";
     return `
       <div class="popup-backdrop"></div>
       <div class="popup" role="dialog" aria-modal="true">
         <div class="popup-header">
-          <div>
-            <span class="popup-line">Linka ${dep.line}</span>
-            <span class="popup-dir">Směr ${dep.direction}</span>
-          </div>
-          <button class="popup-close">✕</button>
+          <button class="popup-close" aria-label="Zavřít">✕</button>
+          <span class="popup-title">Linka ${dep.line} - Směr ${dep.direction}</span>
         </div>
         <div class="popup-body">
-          <p class="popup-time">Odjezd v <strong>${dep.time}</strong> (za ${dep.minutes_until} min)</p>
+          <div class="popup-time-row">
+            <span class="popup-time-label">Odjezd v <strong>${dep.time}</strong></span>
+            <span class="popup-badge ${colorClass}">za ${mins} min</span>
+          </div>
           ${stops.length > 0
-            ? `<div class="route-list">${stops.map((s, i) =>
-                `<div class="route-stop${i === 0 ? " first" : ""}">
-                  <span class="stop-dot"></span>${s}
-                </div>`).join("")}</div>`
-            : `<p class="no-route">Trasa není k dispozici.</p>`}
+            ? `<p class="popup-route">${stops.join(", ")}</p>`
+            : `<p class="popup-no-route">Trasa není k dispozici.</p>`}
         </div>
       </div>`;
   }
@@ -172,7 +171,7 @@ class MHDTimetableCard extends HTMLElement {
       /* Popup - centered modal */
       .popup-backdrop {
         position: fixed; inset: 0;
-        background: rgba(0,0,0,.45);
+        background: rgba(0,0,0,.5);
         z-index: 999;
       }
       .popup {
@@ -180,52 +179,62 @@ class MHDTimetableCard extends HTMLElement {
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        background: var(--card-background-color, #fff);
-        border-radius: 14px;
+        background: var(--card-background-color, #1c1c1e);
+        border-radius: 16px;
         z-index: 1000;
         max-height: 80vh;
-        width: min(480px, calc(100vw - 32px));
+        width: min(520px, calc(100vw - 32px));
         overflow-y: auto;
-        box-shadow: 0 8px 32px rgba(0,0,0,.3);
+        box-shadow: 0 16px 48px rgba(0,0,0,.45);
       }
       .popup-header {
-        display: flex; align-items: flex-start; justify-content: space-between;
-        padding: 16px;
-        border-bottom: 1px solid var(--divider-color, rgba(0,0,0,.12));
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--divider-color, rgba(255,255,255,.1));
         position: sticky; top: 0;
-        background: var(--card-background-color, #fff);
+        background: var(--card-background-color, #1c1c1e);
       }
-      .popup-line {
-        font-size: 1.1em; font-weight: 700;
-        color: var(--primary-color);
-        margin-right: 8px;
-      }
-      .popup-dir { font-size: 1em; color: var(--primary-text-color); }
       .popup-close {
-        background: none; border: none; font-size: 1.3em;
-        cursor: pointer; padding: 0 4px; color: var(--secondary-text-color);
+        background: none; border: none;
+        font-size: 1.1em; cursor: pointer;
+        color: var(--secondary-text-color);
+        padding: 4px; flex-shrink: 0;
+        line-height: 1;
       }
-      .popup-body { padding: 16px; }
-      .popup-time { margin: 0 0 12px; color: var(--secondary-text-color); font-size: 0.9em; }
-      .route-list { display: flex; flex-direction: column; }
-      .route-stop {
-        display: flex; align-items: center; gap: 10px;
-        padding: 6px 0;
-        font-size: 0.9em;
+      .popup-title {
+        font-size: 1.05em;
+        font-weight: 700;
         color: var(--primary-text-color);
-        border-left: 2px solid var(--divider-color, #ccc);
-        padding-left: 12px;
-        margin-left: 6px;
       }
-      .route-stop.first { font-weight: 600; border-left-color: var(--primary-color); }
-      .stop-dot {
-        width: 8px; height: 8px;
-        border-radius: 50%;
-        background: var(--primary-color);
-        flex-shrink: 0;
-        margin-left: -17px;
+      .popup-body { padding: 16px 20px 20px; }
+      .popup-time-row {
+        display: flex; align-items: center; gap: 10px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
       }
-      .no-route { color: var(--secondary-text-color); font-size: 0.9em; }
+      .popup-time-label {
+        font-size: 0.95em;
+        color: var(--secondary-text-color);
+      }
+      .popup-badge {
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 0.82em;
+        font-weight: 700;
+        background: rgba(0,0,0,.15);
+      }
+      .popup-badge.cnt-red    { color: var(--error-color, #f44336); border: 1px solid var(--error-color, #f44336); }
+      .popup-badge.cnt-yellow { color: #f9a825; border: 1px solid #f9a825; }
+      .popup-badge.cnt-green  { color: #4caf50; border: 1px solid #4caf50; }
+      .popup-route {
+        font-size: 0.92em;
+        color: var(--secondary-text-color);
+        line-height: 1.7;
+        margin: 0;
+      }
+      .popup-no-route { color: var(--secondary-text-color); font-size: 0.9em; margin: 0; }
     `;
   }
 

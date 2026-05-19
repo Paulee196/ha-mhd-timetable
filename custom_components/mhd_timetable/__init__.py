@@ -113,7 +113,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             from homeassistant.components.panel_custom import async_register_panel
             await async_register_panel(
                 hass,
-                component_name="mhd-timetable-panel",
+                webcomponent_name="mhd-timetable-panel",
                 sidebar_title="MHD Jízdní řády",
                 sidebar_icon="mdi:bus-clock",
                 frontend_url_path=_PANEL_URL,
@@ -137,7 +137,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Show setup guidance notification on first install (no lines configured yet)
     if not data.get("lines"):
-        hass.components.persistent_notification.async_create(
+        from homeassistant.components.persistent_notification import async_create as pn_create
+        pn_create(
+            hass,
             title="MHD Jízdní řády – zastávka přidána",
             message=(
                 f"Zastávka **{entry.data['stop_name']}** byla úspěšně nakonfigurována.\n\n"

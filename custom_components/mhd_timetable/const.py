@@ -10,18 +10,3 @@ SCHEDULE_LABELS = {
     "sunday": "Neděle",
     "holiday": "Státní svátek",
 }
-
-# Czech public holidays as (month, day) tuples
-CZ_HOLIDAYS_FIXED = [
-    (1, 1),
-    (5, 1),
-    (5, 8),
-    (7, 5),
-    (7, 6),
-    (9, 28),
-    (10, 28),
-    (11, 17),
-    (12, 24),
-    (12, 25),
-    (12, 26),
-]

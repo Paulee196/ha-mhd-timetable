@@ -24,7 +24,6 @@ class MHDTimetableConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 },
             )
 
-        slug = ""
         schema = vol.Schema({
             vol.Required("stop_name"): str,
             vol.Optional(

@@ -11,9 +11,22 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_track_time_interval
 
-from .const import CZ_HOLIDAYS_FIXED, DOMAIN
+from .const import DOMAIN
 
-TZ = ZoneInfo("Europe/Prague")
+try:
+    import holidays as _holidays_lib
+    _HOLIDAYS_AVAILABLE = True
+except ImportError:
+    _HOLIDAYS_AVAILABLE = False
+
+
+def _is_public_holiday(country: str, today: date) -> bool:
+    if not _HOLIDAYS_AVAILABLE:
+        return False
+    try:
+        return today in _holidays_lib.country_holidays(country, years=today.year)
+    except Exception:
+        return False
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
@@ -33,6 +46,7 @@ class MHDNextDeparturesSensor(SensorEntity):
         self._attr_name = f"MHD {entry.data['stop_name']}"
         self._attr_native_value = "Načítání..."
         self._attr_extra_state_attributes = {}
+        self._tz = ZoneInfo(hass.config.time_zone)
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(
@@ -49,8 +63,9 @@ class MHDNextDeparturesSensor(SensorEntity):
 
     async def _async_update(self, _now) -> None:
         data = self._hass.data[DOMAIN][self._entry_id]["data"]
-        now = datetime.now(TZ)
-        result = _compute_next_departures(data, now)
+        country = self._hass.config.country or "CZ"
+        now = datetime.now(self._tz)
+        result = _compute_next_departures(data, now, country)
 
         departures = result["next_departures"]
         if not departures:
@@ -80,31 +95,8 @@ class MHDNextDeparturesSensor(SensorEntity):
         self.async_write_ha_state()
 
 
-def _easter_monday(year: int) -> date:
-    a = year % 19
-    b = year // 100
-    c = year % 100
-    d = b // 4
-    e = b % 4
-    f = (b + 8) // 25
-    g = (b - f + 1) // 3
-    h = (19 * a + b - d - g + 15) % 30
-    i = c // 4
-    k = c % 4
-    ll = (32 + 2 * e + 2 * i - h - k) % 7
-    m = (a + 11 * h + 22 * ll) // 451
-    month = (h + ll - 7 * m + 114) // 31
-    day = ((h + ll - 7 * m + 114) % 31) + 1
-    easter_sunday = date(year, month, day)
-    return easter_sunday + timedelta(days=1)
-
-
-def _get_schedule_type(data: dict, today: date) -> str:
-    holidays = set(CZ_HOLIDAYS_FIXED)
-    em = _easter_monday(today.year)
-    holidays.add((em.month, em.day))
-
-    if (today.month, today.day) in holidays:
+def _get_schedule_type(data: dict, today: date, country: str) -> str:
+    if _is_public_holiday(country, today):
         return "holiday"
 
     if today.weekday() < 5:
@@ -124,9 +116,9 @@ def _get_schedule_type(data: dict, today: date) -> str:
     return "sunday"
 
 
-def _compute_next_departures(data: dict, now: datetime) -> dict:
+def _compute_next_departures(data: dict, now: datetime, country: str = "CZ") -> dict:
     today = now.date()
-    schedule_type = _get_schedule_type(data, today)
+    schedule_type = _get_schedule_type(data, today, country)
 
     # Fallback chain: holiday→sunday, vacation_*→workday
     fallback: dict[str, str] = {"holiday": "sunday"}

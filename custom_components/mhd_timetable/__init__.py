@@ -97,7 +97,13 @@ async def _ws_save_data(
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.data.setdefault(DOMAIN, {})
     www_path = str(pathlib.Path(__file__).parent / "www")
-    hass.http.register_static_path(_STATIC_PATH, www_path, cache_headers=False)
+    try:
+        from homeassistant.components.http import StaticPathConfig
+        await hass.http.async_register_static_paths([
+            StaticPathConfig(_STATIC_PATH, www_path, False)
+        ])
+    except Exception as exc:
+        _LOGGER.warning("Could not register MHD static path: %s", exc)
     return True
 
 

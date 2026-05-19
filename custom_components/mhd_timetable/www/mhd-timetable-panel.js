@@ -83,6 +83,13 @@ class MHDTimetablePanel extends HTMLElement {
     return "vp_" + Math.random().toString(36).slice(2, 7);
   }
 
+  _schedColor(key) {
+    if (key === "workday") return "blue";
+    if (key === "saturday" || key === "sunday") return "yellow";
+    if (key === "holiday") return "green";
+    return "purple";
+  }
+
   _cardYaml() {
     const slug = (this._data?.stop || "název_zastávky")
       .toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -413,7 +420,7 @@ class MHDTimetablePanel extends HTMLElement {
       </div>
       <div class="sched-tabs">
         ${allTabs.map(t => `
-          <button class="stab ${t.vacation ? "vac-stab" : ""} ${t.key === tab ? "active" : ""}" data-type="${t.key}">
+          <button class="stab stab-${this._schedColor(t.key)} ${t.vacation ? "vac-stab" : ""} ${t.key === tab ? "active" : ""}" data-type="${t.key}">
             ${t.label}
           </button>`).join("")}
       </div>
@@ -1038,17 +1045,22 @@ class MHDTimetablePanel extends HTMLElement {
       }
       .stab {
         padding: 6px 14px; border-radius: 18px;
-        border: 1px solid var(--divider-color, rgba(0,0,0,.2));
-        background: none; cursor: pointer; font-size: 0.88em;
-        color: var(--secondary-text-color); transition: all 0.2s;
-      }
-      .stab.active {
-        background: var(--primary-color);
-        color: var(--primary-color-text, #fff);
-        border-color: var(--primary-color);
+        border: 1.5px solid; background: none;
+        cursor: pointer; font-size: 0.88em;
+        font-weight: 600; transition: all 0.18s;
       }
       .stab.vac-stab { border-style: dashed; }
       .stab.vac-stab.active { border-style: solid; }
+
+      .stab-blue   { color: #1e88e5; border-color: #1e88e5; }
+      .stab-yellow { color: #f9a825; border-color: #f9a825; }
+      .stab-green  { color: #43a047; border-color: #43a047; }
+      .stab-purple { color: #8e24aa; border-color: #8e24aa; }
+
+      .stab-blue.active   { background: #1e88e5; color: #fff; }
+      .stab-yellow.active { background: #f9a825; color: #fff; }
+      .stab-green.active  { background: #43a047; color: #fff; }
+      .stab-purple.active { background: #8e24aa; color: #fff; }
 
       .time-grid-wrap { margin-bottom: 80px; }
       .hour-row { margin-bottom: 3px; }

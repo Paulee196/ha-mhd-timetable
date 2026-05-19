@@ -26,6 +26,7 @@ class MHDTimetablePanel extends HTMLElement {
     this._editorTab = "workday";
     this._expandedHours = {};
     this._vacationView = false;
+    this._editingVacIdx = null;
   }
 
   connectedCallback() {
@@ -168,6 +169,7 @@ class MHDTimetablePanel extends HTMLElement {
 
   _vacationHTML() {
     const periods = this._vacationPeriods();
+    const editIdx = this._editingVacIdx;
     return `
       <p class="hint">
         Definujte pojmenovaná prázdninová období. Každé období dostane vlastní záložku v editoru
@@ -176,10 +178,19 @@ class MHDTimetablePanel extends HTMLElement {
       </p>
       ${periods.length === 0
         ? `<p class="hint" style="font-style:italic">Žádná období. Přidejte první níže.</p>`
-        : periods.map((p, i) => `
+        : periods.map((p, i) => editIdx === i ? `
+          <div class="vac-edit-row">
+            <input class="vac-edit-label" value="${p.label || ""}">
+            <input class="vac-edit-start" type="date" value="${p.start}">
+            <span>–</span>
+            <input class="vac-edit-end" type="date" value="${p.end}">
+            <button class="vac-edit-save" data-idx="${i}">Uložit</button>
+            <button class="vac-edit-cancel">✕</button>
+          </div>` : `
           <div class="vac-row">
             <span class="vac-name">${p.label || "Prázdniny"}</span>
             <span class="vac-dates">${p.start} – ${p.end}</span>
+            <button class="vac-edit-btn" data-idx="${i}">Upravit</button>
             <button class="vac-del" data-idx="${i}">✕</button>
           </div>`).join("")}
       <div class="vac-form">
@@ -299,6 +310,7 @@ class MHDTimetablePanel extends HTMLElement {
     root.querySelectorAll(".tab").forEach(btn => {
       btn.addEventListener("click", () => {
         this._vacationView = btn.dataset.view === "vacation";
+        this._editingVacIdx = null;
         this._render();
       });
     });
@@ -330,12 +342,33 @@ class MHDTimetablePanel extends HTMLElement {
     });
 
     // Vacation period management
+    root.querySelectorAll(".vac-edit-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        this._editingVacIdx = parseInt(btn.dataset.idx);
+        this._render();
+      });
+    });
+    root.querySelector(".vac-edit-cancel")?.addEventListener("click", () => {
+      this._editingVacIdx = null;
+      this._render();
+    });
+    root.querySelector(".vac-edit-save")?.addEventListener("click", () => {
+      const idx = this._editingVacIdx;
+      const label = root.querySelector(".vac-edit-label")?.value.trim();
+      const start = root.querySelector(".vac-edit-start")?.value;
+      const end = root.querySelector(".vac-edit-end")?.value;
+      if (!start || !end) { alert("Zadejte datum začátku a konce."); return; }
+      this._data.vacation_periods[idx].label = label || "Prázdniny";
+      this._data.vacation_periods[idx].start = start;
+      this._data.vacation_periods[idx].end = end;
+      this._editingVacIdx = null;
+      this._render();
+    });
     root.querySelectorAll(".vac-del").forEach(btn => {
       btn.addEventListener("click", () => {
         const idx = parseInt(btn.dataset.idx);
         const removed = this._data.vacation_periods[idx];
         this._data.vacation_periods.splice(idx, 1);
-        // Remove orphaned vacation schedule keys from all lines
         if (removed?.id) {
           const key = `vacation_${removed.id}`;
           Object.values(this._data.lines || {}).forEach(line => {
@@ -577,7 +610,35 @@ class MHDTimetablePanel extends HTMLElement {
       }
       .vac-name { flex: 1; font-size: 0.95em; font-weight: 600; }
       .vac-dates { font-size: 0.82em; color: var(--secondary-text-color); }
+      .vac-edit-btn {
+        padding: 4px 10px; border-radius: 6px; font-size: 0.82em;
+        background: none; border: 1px solid var(--primary-color);
+        color: var(--primary-color); cursor: pointer;
+      }
       .vac-del { background: none; border: none; color: var(--error-color, #e53935); cursor: pointer; font-size: 1em; }
+      .vac-edit-row {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+        padding: 10px 16px;
+        background: var(--secondary-background-color);
+        border-radius: 8px; margin-bottom: 6px;
+        border: 1px solid var(--primary-color);
+      }
+      .vac-edit-row input {
+        border: 1px solid var(--divider-color, rgba(0,0,0,.2));
+        border-radius: 6px; padding: 6px 9px;
+        background: var(--card-background-color, #fff);
+        color: var(--primary-text-color); font-size: 0.9em;
+      }
+      .vac-edit-label { flex: 1; min-width: 130px; }
+      .vac-edit-save {
+        padding: 6px 12px; border-radius: 6px;
+        background: var(--primary-color); color: var(--primary-color-text, #fff);
+        border: none; cursor: pointer; font-size: 0.88em; font-weight: 600;
+      }
+      .vac-edit-cancel {
+        background: none; border: none; color: var(--error-color, #e53935);
+        cursor: pointer; font-size: 1em;
+      }
       .vac-form {
         display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
         margin-top: 16px; padding-top: 14px;

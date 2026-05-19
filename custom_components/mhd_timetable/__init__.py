@@ -106,14 +106,36 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     except Exception as exc:
         _LOGGER.warning("Could not register MHD static path: %s", exc)
 
-    # Auto-register the Lovelace card so users don't need to add it manually
+    # Register card JS via add_extra_js_url (loaded on every frontend page)
     try:
         from homeassistant.components.frontend import add_extra_js_url
         add_extra_js_url(hass, _CARD_JS)
     except Exception as exc:
-        _LOGGER.warning("Could not register MHD card JS: %s", exc)
+        _LOGGER.debug("add_extra_js_url unavailable: %s", exc)
+
+    # Also register in Lovelace resource storage for reliable card loading
+    hass.async_create_task(_async_register_lovelace_resource(hass, _CARD_JS))
 
     return True
+
+
+async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> None:
+    """Add card JS to Lovelace resources if not already registered."""
+    try:
+        lovelace = hass.data.get("lovelace")
+        if lovelace is None:
+            return
+        resources = getattr(lovelace, "resources", None)
+        if resources is None or not hasattr(resources, "async_create_item"):
+            return
+        await resources.async_get_info()
+        for item in resources.async_items():
+            if item.get("url") == url:
+                return
+        await resources.async_create_item({"res_type": "module", "url": url})
+        _LOGGER.info("Registered Lovelace resource: %s", url)
+    except Exception as exc:
+        _LOGGER.debug("Could not auto-register Lovelace resource: %s", exc)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

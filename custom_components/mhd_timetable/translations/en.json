@@ -1,0 +1,28 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add MHD Bus Stop",
+        "data": {
+          "stop_name": "Stop name",
+          "output_path": "JSON output file path"
+        },
+        "description": "Enter the stop name and optionally a path to export the timetable as JSON (e.g. /config/www/jizdni_rady/my_stop.json)."
+      }
+    },
+    "error": {},
+    "abort": {
+      "already_configured": "This stop is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Stop settings",
+        "data": {
+          "output_path": "JSON output file path"
+        }
+      }
+    }
+  }
+}

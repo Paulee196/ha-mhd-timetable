@@ -1,0 +1,65 @@
+# MHD Jízdní řády pro Home Assistant
+
+Custom integrace pro Home Assistant umožňující správu jízdních řádů MHD přímo z UI.
+
+## Funkce
+
+- Přidání zastávky přes průvodce (Settings → Integrations)
+- Senzor s příštími odjezdy aktualizovaný každou minutu
+- 5 typů jízdního řádu: pracovní den, sobota, neděle, státní svátek, školní prázdniny
+- Automatická detekce českých státních svátků (včetně Velikonočního pondělí)
+- Konfigurovatelná prázdninová období
+- Zápisování JSON souboru pro zpětnou kompatibilitu
+- Lovelace karta s editorem jízdního řádu
+
+## Instalace přes HACS
+
+1. HACS → Custom repositories → přidat `smarthome4u/ha-mhd-timetable` (kategorie Integration)
+2. Stáhnout a restartovat HA
+3. Settings → Integrations → Add Integration → **MHD Jízdní řády**
+
+## Ruční instalace
+
+1. Zkopírujte složku `custom_components/mhd_timetable` do `/config/custom_components/`
+2. Zkopírujte složku `www/mhd-timetable-card` do `/config/www/`
+3. Restartujte Home Assistant
+
+## Přidání karty
+
+V Lovelace dashboardu přidejte Custom card:
+
+```yaml
+type: custom:mhd-timetable-card
+entity: sensor.mhd_skola_snp
+```
+
+## Formát dat
+
+Integrace ukládá a exportuje data ve stejném formátu jako původní manuální JSON:
+
+```json
+{
+  "stop": "Škola SNP",
+  "vacation_periods": [
+    { "label": "Letní prázdniny", "start": "2025-07-01", "end": "2025-08-31" }
+  ],
+  "lines": {
+    "27": {
+      "direction": "Pod strání",
+      "route": "Škola SNP, Alessandria, Pyrám, ...",
+      "valid_from": "2023-04-01",
+      "schedule_types": ["workday", "saturday", "sunday"],
+      "workday": { "05": [15, 38, 49, 59], "06": [18, 33, 48] },
+      "saturday": { "05": [41], "06": [8, 58] },
+      "sunday":   { "05": [41], "06": [8, 58] }
+    }
+  }
+}
+```
+
+## Priorita jízdních řádů
+
+1. **Státní svátek** (automaticky z českého kalendáře) → sváteční jízdní řád, záloha: neděle
+2. **Školní prázdniny** (konfigurované rozsahy) → prázdninový jízdní řád, záloha: pracovní den
+3. **Sobota / Neděle** → dle dne
+4. **Jinak** → pracovní den

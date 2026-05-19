@@ -1,0 +1,143 @@
+"""MHD Jízdní řády – Home Assistant custom integration."""
+from __future__ import annotations
+
+import json
+import logging
+import os
+
+import voluptuous as vol
+from homeassistant.components import websocket_api
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.storage import Store
+
+from .const import DOMAIN, STORAGE_KEY, STORAGE_VERSION
+
+_LOGGER = logging.getLogger(__name__)
+PLATFORMS = ["sensor"]
+
+
+# ---------------------------------------------------------------------------
+# Module-level websocket handlers (registered once, used by all entries)
+# ---------------------------------------------------------------------------
+
+@websocket_api.websocket_command({vol.Required("type"): "mhd_timetable/list_entries"})
+@websocket_api.async_response
+async def _ws_list_entries(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    entries = [
+        {"entry_id": eid, "stop": v["data"]["stop"]}
+        for eid, v in hass.data.get(DOMAIN, {}).items()
+        if isinstance(v, dict) and "data" in v
+    ]
+    connection.send_result(msg["id"], entries)
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "mhd_timetable/get_data",
+    vol.Required("entry_id"): str,
+})
+@websocket_api.async_response
+async def _ws_get_data(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    entry_id = msg["entry_id"]
+    domain_data = hass.data.get(DOMAIN, {})
+    if entry_id not in domain_data:
+        connection.send_error(msg["id"], "not_found", "Entry not found")
+        return
+    connection.send_result(msg["id"], domain_data[entry_id]["data"])
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "mhd_timetable/save_data",
+    vol.Required("entry_id"): str,
+    vol.Required("data"): dict,
+})
+@websocket_api.async_response
+async def _ws_save_data(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict,
+) -> None:
+    entry_id = msg["entry_id"]
+    domain_data = hass.data.get(DOMAIN, {})
+    if entry_id not in domain_data:
+        connection.send_error(msg["id"], "not_found", "Entry not found")
+        return
+
+    entry_storage = domain_data[entry_id]
+    entry_storage["data"] = msg["data"]
+    await entry_storage["store"].async_save(msg["data"])
+
+    entry = hass.config_entries.async_get_entry(entry_id)
+    output_path = entry.data.get("output_path", "").strip() if entry else ""
+    if output_path:
+        await _write_json_file(hass, output_path, msg["data"])
+
+    async_dispatcher_send(hass, f"{DOMAIN}_updated_{entry_id}")
+    connection.send_result(msg["id"], {"success": True})
+
+
+# ---------------------------------------------------------------------------
+# Integration setup
+# ---------------------------------------------------------------------------
+
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    hass.data.setdefault(DOMAIN, {})
+    return True
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    hass.data.setdefault(DOMAIN, {})
+
+    # Register websocket commands once per HA instance
+    if not hass.data[DOMAIN].get("_ws_registered"):
+        websocket_api.async_register_command(hass, _ws_list_entries)
+        websocket_api.async_register_command(hass, _ws_get_data)
+        websocket_api.async_register_command(hass, _ws_save_data)
+        hass.data[DOMAIN]["_ws_registered"] = True
+
+    store = Store(hass, STORAGE_VERSION, f"{STORAGE_KEY}_{entry.entry_id}")
+    data = await store.async_load() or _default_data(entry.data["stop_name"])
+
+    hass.data[DOMAIN][entry.entry_id] = {
+        "store": store,
+        "data": data,
+    }
+
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    return True
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unload_ok:
+        hass.data[DOMAIN].pop(entry.entry_id)
+    return unload_ok
+
+
+def _default_data(stop_name: str) -> dict:
+    return {
+        "stop": stop_name,
+        "vacation_periods": [],
+        "lines": {},
+    }
+
+
+async def _write_json_file(hass: HomeAssistant, path: str, data: dict) -> None:
+    def _write():
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+    try:
+        await hass.async_add_executor_job(_write)
+    except Exception as exc:
+        _LOGGER.error("Failed to write JSON to %s: %s", path, exc)

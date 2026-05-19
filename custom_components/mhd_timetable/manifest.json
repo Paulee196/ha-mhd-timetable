@@ -1,0 +1,11 @@
+{
+  "domain": "mhd_timetable",
+  "name": "MHD Jízdní řády",
+  "version": "1.0.0",
+  "documentation": "https://github.com/smarthome4u/ha-mhd-timetable",
+  "issue_tracker": "https://github.com/smarthome4u/ha-mhd-timetable/issues",
+  "codeowners": [],
+  "requirements": [],
+  "iot_class": "local_push",
+  "config_flow": true
+}

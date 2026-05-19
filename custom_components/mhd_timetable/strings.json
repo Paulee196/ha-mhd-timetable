@@ -1,0 +1,28 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Přidat zastávku MHD",
+        "data": {
+          "stop_name": "Název zastávky",
+          "output_path": "Cesta pro uložení JSON souboru"
+        },
+        "description": "Zadejte název zastávky a volitelně cestu pro export jízdního řádu jako JSON."
+      }
+    },
+    "error": {},
+    "abort": {
+      "already_configured": "Tato zastávka je již nakonfigurována."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Nastavení zastávky",
+        "data": {
+          "output_path": "Cesta pro uložení JSON souboru"
+        }
+      }
+    }
+  }
+}

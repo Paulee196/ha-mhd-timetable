@@ -17,6 +17,9 @@ from .const import DOMAIN, STORAGE_KEY, STORAGE_VERSION
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["sensor"]
 
+_PANEL_URL = "mhd_timetable"
+_PANEL_JS = "/local/mhd-timetable-card/mhd-timetable-panel.js"
+
 
 # ---------------------------------------------------------------------------
 # Module-level websocket handlers (registered once, used by all entries)
@@ -104,6 +107,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         websocket_api.async_register_command(hass, _ws_save_data)
         hass.data[DOMAIN]["_ws_registered"] = True
 
+    # Register sidebar panel once per HA instance
+    if not hass.data[DOMAIN].get("_panel_registered"):
+        try:
+            from homeassistant.components.panel_custom import async_register_panel
+            await async_register_panel(
+                hass,
+                component_name="mhd-timetable-panel",
+                sidebar_title="MHD Jízdní řády",
+                sidebar_icon="mdi:bus-clock",
+                frontend_url_path=_PANEL_URL,
+                module_url=_PANEL_JS,
+                require_admin=False,
+                config={},
+            )
+            hass.data[DOMAIN]["_panel_registered"] = True
+        except Exception as exc:
+            _LOGGER.warning("Could not register MHD panel: %s", exc)
+
     store = Store(hass, STORAGE_VERSION, f"{STORAGE_KEY}_{entry.entry_id}")
     data = await store.async_load() or _default_data(entry.data["stop_name"])
 
@@ -113,6 +134,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Show setup guidance notification on first install (no lines configured yet)
+    if not data.get("lines"):
+        hass.components.persistent_notification.async_create(
+            title="MHD Jízdní řády – zastávka přidána",
+            message=(
+                f"Zastávka **{entry.data['stop_name']}** byla úspěšně nakonfigurována.\n\n"
+                "**Jak přidat spoje:**\n"
+                "Klikněte na ikonu 🚌 **MHD Jízdní řády** v levém postranním panelu.\n\n"
+                "Nebo přidejte kartu do dashboardu:\n"
+                "```yaml\n"
+                "type: custom:mhd-timetable-card\n"
+                f"entity: sensor.mhd_{entry.data['stop_name'].lower().replace(' ', '_')}\n"
+                "```\n"
+                "a klikněte na ✏️ v kartě."
+            ),
+            notification_id=f"mhd_timetable_setup_{entry.entry_id}",
+        )
+
     return True
 
 
@@ -120,6 +160,20 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
+
+    # Remove panel if no entries remain
+    remaining = [
+        k for k in hass.data.get(DOMAIN, {})
+        if k not in ("_ws_registered", "_panel_registered")
+    ]
+    if not remaining and hass.data[DOMAIN].get("_panel_registered"):
+        try:
+            from homeassistant.components.frontend import async_remove_panel
+            async_remove_panel(hass, _PANEL_URL)
+            hass.data[DOMAIN]["_panel_registered"] = False
+        except Exception:
+            pass
+
     return unload_ok
 
 

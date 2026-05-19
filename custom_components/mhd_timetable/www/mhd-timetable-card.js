@@ -88,7 +88,7 @@ class MHDTimetableCard extends HTMLElement {
       el.addEventListener("click", (e) => {
         e.stopPropagation();
         const state = this._hass.states[this._config.entity];
-        const deps = (state?.attributes?.next_departures) || [];
+        const deps = (state && state.attributes && state.attributes.next_departures) || [];
         const idx = parseInt(el.dataset.idx, 10);
         this._popup = deps[idx] || null;
         this._render();
@@ -170,7 +170,8 @@ class MHDTimetableCard extends HTMLElement {
 
       /* Popup - centered modal */
       .popup-backdrop {
-        position: fixed; inset: 0;
+        position: fixed;
+        top: 0; right: 0; bottom: 0; left: 0;
         background: rgba(0,0,0,.5);
         z-index: 999;
       }
@@ -183,7 +184,8 @@ class MHDTimetableCard extends HTMLElement {
         border-radius: 16px;
         z-index: 1000;
         max-height: 80vh;
-        width: min(520px, calc(100vw - 32px));
+        width: calc(100vw - 32px);
+        max-width: 520px;
         overflow-y: auto;
         box-shadow: 0 16px 48px rgba(0,0,0,.45);
       }
@@ -261,7 +263,7 @@ class MHDTimetableCardEditor extends HTMLElement {
       </style>
       <div class="row">
         <label>Entity (senzor zastávky)</label>
-        <input id="entity" value="${this._config?.entity || ""}" placeholder="sensor.mhd_...">
+        <input id="entity" value="${(this._config && this._config.entity) || ""}" placeholder="sensor.mhd_...">
       </div>
     `;
     this.querySelector("#entity").addEventListener("change", e => {

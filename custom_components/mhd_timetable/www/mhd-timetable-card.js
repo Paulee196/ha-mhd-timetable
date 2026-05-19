@@ -33,6 +33,7 @@ class MHDTimetableCard extends HTMLElement {
       <style>${this._styles()}</style>
       <ha-card>
         <div class="card-header">
+          <span class="header-icon">🚌</span>
           <span class="stop-name">${stopName}</span>
         </div>
         <div class="departures">
@@ -50,16 +51,12 @@ class MHDTimetableCard extends HTMLElement {
 
   _depHTML(dep, idx) {
     const mins = dep.minutes_until;
-    const badge = mins === 0 ? "Teď" : mins <= 1 ? "1 min" : `${mins} min`;
-    const urgent = mins <= 5 ? " urgent" : "";
+    const countdownText = mins === 0 ? "Teď!" : `za ${mins} min`;
+    const colorClass = mins <= 5 ? "cnt-red" : mins <= 10 ? "cnt-yellow" : "cnt-green";
     return `
-      <div class="departure${urgent}" data-idx="${idx}">
-        <div class="line-badge">${dep.line}</div>
-        <div class="dep-info">
-          <span class="direction">${dep.direction}</span>
-          <span class="dep-time">${dep.time}</span>
-        </div>
-        <div class="countdown${urgent}">${badge}</div>
+      <div class="departure" data-idx="${idx}">
+        <span class="dep-text">Linka ${dep.line} - Směr ${dep.direction} v ${dep.time}</span>
+        <span class="dep-countdown ${colorClass}">(${countdownText})</span>
       </div>`;
   }
 
@@ -123,64 +120,54 @@ class MHDTimetableCard extends HTMLElement {
       .card-header {
         display: flex;
         align-items: center;
-        padding: 14px 16px 10px;
-        border-bottom: 1px solid var(--divider-color, rgba(0,0,0,.12));
+        gap: 8px;
+        padding: 14px 16px 12px;
+        border-bottom: 1px solid var(--divider-color, rgba(255,255,255,.1));
       }
 
+      .header-icon { font-size: 1.2em; line-height: 1; }
+
       .stop-name {
-        font-size: 1.1em;
+        font-size: 1.05em;
         font-weight: 600;
         color: var(--primary-text-color);
       }
 
-      .departures { padding: 8px 0; }
+      .departures { padding: 4px 0 8px; }
 
-      .empty { padding: 16px; text-align: center; color: var(--secondary-text-color); }
+      .empty {
+        padding: 16px;
+        text-align: center;
+        color: var(--secondary-text-color);
+        font-size: 0.95em;
+      }
 
       .departure {
-        display: flex;
-        align-items: center;
-        gap: 12px;
         padding: 10px 16px;
         cursor: pointer;
         transition: background 0.15s;
+        line-height: 1.55;
         border-bottom: 1px solid var(--divider-color, rgba(0,0,0,.06));
       }
       .departure:last-child { border-bottom: none; }
-      .departure:hover { background: var(--secondary-background-color); }
+      .departure:hover { background: rgba(0,0,0,.06); }
 
-      .line-badge {
-        min-width: 38px;
-        text-align: center;
-        background: var(--primary-color);
-        color: var(--primary-color-text, #fff);
-        font-weight: 700;
-        font-size: 1em;
-        padding: 4px 6px;
-        border-radius: 6px;
+      .dep-text {
+        font-size: 1.05em;
+        font-weight: 600;
+        color: var(--primary-text-color);
+        margin-right: 4px;
       }
 
-      .dep-info { flex: 1; min-width: 0; }
-      .direction {
+      .dep-countdown {
         display: block;
         font-size: 0.95em;
-        color: var(--primary-text-color);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .dep-time {
-        font-size: 0.8em;
-        color: var(--secondary-text-color);
+        font-weight: 600;
       }
 
-      .countdown {
-        font-size: 0.85em;
-        font-weight: 600;
-        color: var(--secondary-text-color);
-        white-space: nowrap;
-      }
-      .countdown.urgent { color: var(--error-color, #e53935); }
+      .cnt-red    { color: var(--error-color, #f44336); }
+      .cnt-yellow { color: #f9a825; }
+      .cnt-green  { color: #4caf50; }
 
       /* Popup - centered modal */
       .popup-backdrop {
@@ -220,7 +207,7 @@ class MHDTimetableCard extends HTMLElement {
       }
       .popup-body { padding: 16px; }
       .popup-time { margin: 0 0 12px; color: var(--secondary-text-color); font-size: 0.9em; }
-      .route-list { display: flex; flex-direction: column; gap: 0; }
+      .route-list { display: flex; flex-direction: column; }
       .route-stop {
         display: flex; align-items: center; gap: 10px;
         padding: 6px 0;

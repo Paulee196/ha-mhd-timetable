@@ -21,6 +21,7 @@ PLATFORMS = ["sensor"]
 _PANEL_URL = "mhd_timetable"
 _STATIC_PATH = "/mhd_timetable_static"
 _PANEL_JS = f"{_STATIC_PATH}/mhd-timetable-panel.js"
+_CARD_JS = f"{_STATIC_PATH}/mhd-timetable-card.js"
 
 
 # ---------------------------------------------------------------------------
@@ -104,6 +105,14 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
         ])
     except Exception as exc:
         _LOGGER.warning("Could not register MHD static path: %s", exc)
+
+    # Auto-register the Lovelace card so users don't need to add it manually
+    try:
+        from homeassistant.components.frontend import add_extra_js_url
+        add_extra_js_url(hass, _CARD_JS)
+    except Exception as exc:
+        _LOGGER.warning("Could not register MHD card JS: %s", exc)
+
     return True
 
 

@@ -9,6 +9,7 @@ import pathlib
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
@@ -106,34 +107,46 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     except Exception as exc:
         _LOGGER.warning("Could not register MHD static path: %s", exc)
 
-    # Register card JS via add_extra_js_url (loaded on every frontend page)
+    # Register card JS via add_extra_js_url as quick fallback
     try:
         from homeassistant.components.frontend import add_extra_js_url
         add_extra_js_url(hass, _CARD_JS)
     except Exception as exc:
         _LOGGER.debug("add_extra_js_url unavailable: %s", exc)
 
-    # Also register in Lovelace resource storage for reliable card loading
-    hass.async_create_task(_async_register_lovelace_resource(hass, _CARD_JS))
+    # Register in Lovelace resource storage - must wait until HA is fully started
+    # so that the lovelace component is loaded and hass.data["lovelace"] exists
+    async def _register(_event=None):
+        await _async_register_lovelace_resource(hass, _CARD_JS)
+
+    if hass.is_running:
+        # Integration added while HA is already running (UI install)
+        hass.async_create_task(_register())
+    else:
+        # HA is starting up - lovelace not ready yet, wait for it
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _register)
 
     return True
 
 
 async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> None:
-    """Add card JS to Lovelace resources if not already registered."""
+    """Add card JS to Lovelace resources storage if not already registered."""
     try:
         lovelace = hass.data.get("lovelace")
         if lovelace is None:
+            _LOGGER.debug("Lovelace not in hass.data, skipping resource registration")
             return
         resources = getattr(lovelace, "resources", None)
         if resources is None or not hasattr(resources, "async_create_item"):
             return
-        await resources.async_get_info()
+        if hasattr(resources, "async_load"):
+            await resources.async_load()
         for item in resources.async_items():
             if item.get("url") == url:
+                _LOGGER.debug("Lovelace resource already registered: %s", url)
                 return
         await resources.async_create_item({"res_type": "module", "url": url})
-        _LOGGER.info("Registered Lovelace resource: %s", url)
+        _LOGGER.info("Lovelace resource registered automatically: %s", url)
     except Exception as exc:
         _LOGGER.debug("Could not auto-register Lovelace resource: %s", exc)
 

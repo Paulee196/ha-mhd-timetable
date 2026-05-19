@@ -430,32 +430,48 @@ class MHDTimetablePanel extends HTMLElement {
             ? `Jízdní řád pro <strong>${currentTabLabel}</strong>. Prázdné = použije se pracovní den.`
             : "Kliknutím na hodinu rozbalíte minuty. Kliknutím na minutu ji přidáte nebo odeberete."}
         </p>
-        <div class="time-grid">${this._timeGridHTML(ld[tab] || {}, tab)}</div>
+        <div class="time-grid">${this._timeGridHTML(ld, tab, allTabs.map(t => t.key))}</div>
       </div>
       <div class="footer">
         <button class="line-save-btn">${isNew ? "Přidat linku" : "Uložit linku"}</button>
       </div>`;
   }
 
-  _timeGridHTML(schedule, type) {
+  _timeGridHTML(lineData, activeType, allTypes) {
+    const types = allTypes || [activeType];
     let html = "";
     for (let h = 0; h < 24; h++) {
       const hStr = String(h).padStart(2, "0");
-      const mins = (schedule[String(h)] || schedule[hStr] || []).slice().sort((a, b) => a - b);
-      const expanded = this._expandedHours[`${type}_${h}`];
+
+      // Collect chips from ALL schedule types for this hour
+      const allChips = [];
+      types.forEach(type => {
+        const sched = lineData[type] || {};
+        const mins = (sched[String(h)] || sched[hStr] || []).slice();
+        mins.sort((a, b) => a - b).forEach(m => allChips.push({ m, type }));
+      });
+      allChips.sort((a, b) => a.m - b.m);
+
+      // Active type mins for the editable minute grid
+      const activeSched = lineData[activeType] || {};
+      const activeMins = (activeSched[String(h)] || activeSched[hStr] || []).slice();
+
+      const expanded = this._expandedHours[`${activeType}_${h}`];
       html += `
         <div class="hour-row">
-          <div class="hour-hdr ${expanded ? "open" : ""}" data-hour="${h}" data-type="${type}">
+          <div class="hour-hdr ${expanded ? "open" : ""}" data-hour="${h}" data-type="${activeType}">
             <span class="hour-lbl">${hStr}</span>
             <div class="chips">
-              ${mins.map(m => `<span class="chip" data-h="${h}" data-m="${m}" data-type="${type}">${String(m).padStart(2,"0")}</span>`).join("")}
+              ${allChips.map(({m, type}) =>
+                `<span class="chip chip-${this._schedColor(type)}" data-h="${h}" data-m="${m}" data-type="${type}">${String(m).padStart(2,"0")}</span>`
+              ).join("")}
             </div>
             <span class="toggle">${expanded ? "▲" : "▼"}</span>
           </div>
           ${expanded ? `
             <div class="min-grid">
-              ${Array.from({length:60},(_,m) => `
-                <button class="mcell ${mins.includes(m) ? "on" : ""}" data-h="${h}" data-m="${m}" data-type="${type}">
+              ${Array.from({length:60}, (_, m) => `
+                <button class="mcell mcell-${this._schedColor(activeType)} ${activeMins.includes(m) ? "on" : ""}" data-h="${h}" data-m="${m}" data-type="${activeType}">
                   ${String(m).padStart(2,"0")}
                 </button>`).join("")}
             </div>` : ""}
@@ -1077,11 +1093,15 @@ class MHDTimetablePanel extends HTMLElement {
       }
       .chips { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; }
       .chip {
-        background: var(--primary-color); color: var(--primary-color-text, #fff);
         border-radius: 4px; padding: 2px 6px;
         font-size: 0.78em; font-weight: 700; cursor: pointer;
+        color: #fff; transition: opacity 0.15s;
       }
-      .chip:hover { opacity: 0.75; }
+      .chip:hover { opacity: 0.7; }
+      .chip-blue   { background: #1e88e5; }
+      .chip-yellow { background: #f9a825; }
+      .chip-green  { background: #43a047; }
+      .chip-purple { background: #8e24aa; }
       .toggle { font-size: 0.68em; color: var(--secondary-text-color); margin-left: auto; }
 
       .min-grid {
@@ -1097,10 +1117,11 @@ class MHDTimetablePanel extends HTMLElement {
         color: var(--secondary-text-color); transition: all 0.1s;
       }
       .mcell:hover { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
-      .mcell.on {
-        background: var(--primary-color); color: var(--primary-color-text, #fff);
-        border-color: var(--primary-color); font-weight: 700;
-      }
+      .mcell.on { font-weight: 700; color: #fff; }
+      .mcell-blue.on    { background: #1e88e5; border-color: #1e88e5; }
+      .mcell-yellow.on  { background: #f9a825; border-color: #f9a825; }
+      .mcell-green.on   { background: #43a047; border-color: #43a047; }
+      .mcell-purple.on  { background: #8e24aa; border-color: #8e24aa; }
 
       .line-save-btn {
         background: var(--primary-color); color: var(--primary-color-text, #fff);

@@ -28,6 +28,7 @@ class MHDTimetablePanel extends HTMLElement {
     this._vacationView = false;
     this._editingVacIdx = null;
     this._editingGroupIdx = null;
+    this._helpVisible = false;
   }
 
   connectedCallback() {
@@ -137,8 +138,73 @@ class MHDTimetablePanel extends HTMLElement {
                   ${e.stop}
                 </option>`).join("")}
             </select>` : `<span class="stop-title">${this._data?.stop || ""}</span>`}
+          <button class="help-btn" title="Nápověda">?</button>
         </div>
+        ${this._helpVisible ? this._helpHTML() : ""}
         ${this._editorLine !== null ? this._lineEditorHTML() : this._mainEditorHTML()}
+      </div>`;
+  }
+
+  _helpHTML() {
+    return `
+      <div class="help-box">
+        <div class="help-title">Jak to funguje</div>
+
+        <div class="help-section">
+          <div class="help-step">1</div>
+          <div>
+            <strong>Státní svátky</strong> jsou rozpoznány automaticky
+            podle nastavení země v Home Assistant. Nemusíte je nikde vypisovat.
+            V editoru linky stačí nastavit záložku <em>Státní svátek</em>.
+          </div>
+        </div>
+
+        <div class="help-section">
+          <div class="help-step">2</div>
+          <div>
+            <strong>Prázdninová období</strong> si definujete ručně v záložce
+            <em>Prázdniny</em>. Zadáte název (např. Letní prázdniny) a datum od–do.
+          </div>
+        </div>
+
+        <div class="help-section">
+          <div class="help-step">3</div>
+          <div>
+            <strong>Skupiny rozvrhu</strong> slouží ke sdílení jednoho jízdního řádu
+            pro více období. Pokud např. Letní prázdniny i Vánoce jedou stejně,
+            vytvořte skupinu <em>Prázdninový provoz</em> a obě období do ní přiřaďte.
+            V editoru linky pak nastavíte časy jen jednou.
+            Pokud každé období jede jinak, skupiny nepotřebujete.
+          </div>
+        </div>
+
+        <div class="help-section">
+          <div class="help-step">4</div>
+          <div>
+            <strong>Linky</strong> přidáte v záložce <em>Linky</em>. U každé linky
+            nastavíte časy pro jednotlivé typy dnů pomocí záložek:
+            Pracovní den, Sobota, Neděle, Státní svátek
+            a záložku pro každou skupinu nebo samostatné období.
+            Kliknutím na hodinu rozbalíte minuty a kliknutím na minutu ji přidáte nebo odeberete.
+          </div>
+        </div>
+
+        <div class="help-section">
+          <div class="help-step">5</div>
+          <div>
+            <strong>Priorita</strong> při výběru jízdního řádu:
+            Státní svátek → aktuální prázdninové období → Sobota/Neděle → Pracovní den.
+            Pokud pro dané prázdniny časy nevyplníte, použije se automaticky pracovní den.
+          </div>
+        </div>
+
+        <div class="help-section">
+          <div class="help-step">6</div>
+          <div>
+            <strong>Uložení</strong> — po všech změnách klikněte na
+            <em>Uložit změny</em> dole. Senzor se aktualizuje okamžitě.
+          </div>
+        </div>
       </div>`;
   }
 
@@ -380,6 +446,11 @@ class MHDTimetablePanel extends HTMLElement {
   // -------------------------------------------------------------------------
   _bind() {
     const root = this.shadowRoot;
+
+    root.querySelector(".help-btn")?.addEventListener("click", () => {
+      this._helpVisible = !this._helpVisible;
+      this._render();
+    });
 
     root.querySelector(".stop-select")?.addEventListener("change", async e => {
       this._selectedId = e.target.value;
@@ -673,6 +744,39 @@ class MHDTimetablePanel extends HTMLElement {
       }
 
       .loading, .empty { padding: 40px; text-align: center; color: var(--secondary-text-color); }
+
+      .help-btn {
+        margin-left: auto; width: 30px; height: 30px; border-radius: 50%;
+        border: 2px solid var(--primary-color); background: none;
+        color: var(--primary-color); font-size: 1em; font-weight: 700;
+        cursor: pointer; line-height: 1; flex-shrink: 0;
+      }
+      .help-btn:hover { background: var(--primary-color); color: var(--primary-color-text, #fff); }
+
+      .help-box {
+        background: var(--card-background-color, #fff);
+        border: 1px solid var(--primary-color);
+        border-radius: 12px; padding: 18px 20px;
+        margin-bottom: 20px;
+      }
+      .help-title {
+        font-size: 0.85em; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.06em; color: var(--primary-color);
+        margin-bottom: 14px;
+      }
+      .help-section {
+        display: flex; gap: 12px; align-items: flex-start;
+        margin-bottom: 12px; font-size: 0.9em; line-height: 1.5;
+        color: var(--primary-text-color);
+      }
+      .help-section:last-child { margin-bottom: 0; }
+      .help-step {
+        min-width: 24px; height: 24px; border-radius: 50%;
+        background: var(--primary-color); color: var(--primary-color-text, #fff);
+        font-size: 0.78em; font-weight: 700;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0; margin-top: 1px;
+      }
 
       .tabs {
         display: flex; border-bottom: 2px solid var(--divider-color, rgba(0,0,0,.1));

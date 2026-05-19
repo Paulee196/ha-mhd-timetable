@@ -108,13 +108,6 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     except Exception as exc:
         _LOGGER.warning("Could not register MHD static path: %s", exc)
 
-    # Register card JS via add_extra_js_url as quick fallback
-    try:
-        from homeassistant.components.frontend import add_extra_js_url
-        add_extra_js_url(hass, _CARD_JS)
-    except Exception as exc:
-        _LOGGER.debug("add_extra_js_url unavailable: %s", exc)
-
     # Register in Lovelace resource storage - must wait until HA is fully started
     # so that the lovelace component is loaded and hass.data["lovelace"] exists
     async def _register(_event=None):

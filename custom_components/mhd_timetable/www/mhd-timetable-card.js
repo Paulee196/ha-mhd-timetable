@@ -275,8 +275,12 @@ class MHDTimetableCardEditor extends HTMLElement {
   }
 }
 
-customElements.define("mhd-timetable-card", MHDTimetableCard);
-customElements.define("mhd-timetable-card-editor", MHDTimetableCardEditor);
+if (!customElements.get("mhd-timetable-card")) {
+  customElements.define("mhd-timetable-card", MHDTimetableCard);
+}
+if (!customElements.get("mhd-timetable-card-editor")) {
+  customElements.define("mhd-timetable-card-editor", MHDTimetableCardEditor);
+}
 
 window.customCards = window.customCards || [];
 window.customCards.push({

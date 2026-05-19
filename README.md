@@ -24,12 +24,17 @@ Custom integrace pro Home Assistant umožňující správu jízdních řádů MH
 ## Ruční instalace
 
 1. Zkopírujte složku `custom_components/mhd_timetable` do `/config/custom_components/`
-2. Zkopírujte složku `www/mhd-timetable-card` do `/config/www/`
-3. Restartujte Home Assistant
+2. Restartujte Home Assistant (JS soubory se servírují přímo z integrace)
 
 ## Přidání karty
 
-V Lovelace dashboardu přidejte Custom card:
+Nejprve přidejte resource do dashboardu (Settings → Dashboards → Resources):
+
+```
+/mhd_timetable_static/mhd-timetable-card.js
+```
+
+Pak přidejte Custom card:
 
 ```yaml
 type: custom:mhd-timetable-card

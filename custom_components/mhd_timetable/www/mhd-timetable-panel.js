@@ -471,22 +471,31 @@ class MHDTimetablePanel extends HTMLElement {
     root.querySelector(".help-copy-btn")?.addEventListener("click", e => {
       const text = root.querySelector("#help-card-yaml")?.textContent?.trim();
       if (!text) return;
-      const btn = e.target;
+      const btn = e.currentTarget;
+      const _fallback = () => {
+        const ta = document.createElement("textarea");
+        ta.style.cssText = "position:fixed;top:-9999px;left:-9999px;opacity:0";
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try {
+          document.execCommand("copy");
+          btn.textContent = "Zkopírováno ✓";
+          setTimeout(() => { btn.textContent = "Kopírovat"; }, 2000);
+        } catch (_) {
+          btn.textContent = "Nepodařilo se kopírovat";
+          setTimeout(() => { btn.textContent = "Kopírovat"; }, 2000);
+        }
+        document.body.removeChild(ta);
+      };
       if (navigator.clipboard) {
         navigator.clipboard.writeText(text).then(() => {
           btn.textContent = "Zkopírováno ✓";
           setTimeout(() => { btn.textContent = "Kopírovat"; }, 2000);
-        }).catch(() => { btn.textContent = "Kopírovat"; });
+        }).catch(_fallback);
       } else {
-        // Fallback for non-HTTPS or older browsers
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-        btn.textContent = "Zkopírováno ✓";
-        setTimeout(() => { btn.textContent = "Kopírovat"; }, 2000);
+        _fallback();
       }
     });
 

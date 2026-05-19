@@ -105,7 +105,9 @@ def _get_schedule_type(data: dict, today: date, country: str) -> str:
                 start = date.fromisoformat(period["start"])
                 end = date.fromisoformat(period["end"])
                 if start <= today <= end and period.get("id"):
-                    return f"vacation_{period['id']}"
+                    # Use group schedule if assigned, otherwise period's own schedule
+                    key_id = period.get("group_id") or period["id"]
+                    return f"vacation_{key_id}"
             except (KeyError, ValueError):
                 pass
 

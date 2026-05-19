@@ -27,6 +27,7 @@ class MHDTimetablePanel extends HTMLElement {
     this._expandedHours = {};
     this._vacationView = false;
     this._editingVacIdx = null;
+    this._editingGroupIdx = null;
   }
 
   connectedCallback() {
@@ -59,18 +60,21 @@ class MHDTimetablePanel extends HTMLElement {
         type: "mhd_timetable/get_data",
         entry_id: this._selectedId,
       });
-      this._ensureVacationIds();
+      this._ensureIds();
     } catch (e) {
       this._data = null;
     }
   }
 
-  // Ensure all vacation periods have stable IDs (migration for old data)
-  _ensureVacationIds() {
-    const periods = this._data?.vacation_periods;
-    if (!periods) return;
-    periods.forEach(p => {
+  _ensureIds() {
+    if (!this._data) return;
+    if (!this._data.vacation_groups) this._data.vacation_groups = [];
+    if (!this._data.vacation_periods) this._data.vacation_periods = [];
+    this._data.vacation_periods.forEach(p => {
       if (!p.id) p.id = this._genId();
+    });
+    this._data.vacation_groups.forEach(g => {
+      if (!g.id) g.id = this._genId();
     });
   }
 
@@ -78,8 +82,29 @@ class MHDTimetablePanel extends HTMLElement {
     return "vp_" + Math.random().toString(36).slice(2, 7);
   }
 
-  _vacationPeriods() {
-    return this._data?.vacation_periods || [];
+  _vacationPeriods() { return this._data?.vacation_periods || []; }
+  _vacationGroups()  { return this._data?.vacation_groups  || []; }
+
+  // Returns the list of unique schedule tabs for the line editor vacation section.
+  // Each entry: { key: "vacation_<id>", label: "..." }
+  _vacationTabs() {
+    const groups  = this._vacationGroups();
+    const periods = this._vacationPeriods();
+    const seen = new Set();
+    const tabs = [];
+    // Groups first
+    groups.forEach(g => {
+      seen.add(g.id);
+      tabs.push({ key: `vacation_${g.id}`, label: g.label || "Skupina" });
+    });
+    // Ungrouped periods
+    periods.forEach(p => {
+      if (!p.group_id && !seen.has(p.id)) {
+        seen.add(p.id);
+        tabs.push({ key: `vacation_${p.id}`, label: p.label || "Prázdniny" });
+      }
+    });
+    return tabs;
   }
 
   // -------------------------------------------------------------------------
@@ -124,7 +149,7 @@ class MHDTimetablePanel extends HTMLElement {
     return `
       <div class="tabs">
         <button class="tab ${!this._vacationView ? "active" : ""}" data-view="lines">Linky</button>
-        <button class="tab ${this._vacationView ? "active" : ""}" data-view="vacation">Prázdninová období</button>
+        <button class="tab ${this._vacationView ? "active" : ""}" data-view="vacation">Prázdniny</button>
       </div>
       <div class="content">
         ${!this._vacationView ? `
@@ -145,11 +170,8 @@ class MHDTimetablePanel extends HTMLElement {
     const types = (data.schedule_types || [])
       .filter(t => BASE_TYPES.includes(t))
       .map(t => SCHEDULE_LABELS[t] || t).join(", ");
-    const vacPeriods = this._vacationPeriods();
-    const vacCount = vacPeriods.filter(vp => {
-      const key = `vacation_${vp.id}`;
-      return data[key] && Object.keys(data[key]).length > 0;
-    }).length;
+    const vtabs = this._vacationTabs();
+    const vacCount = vtabs.filter(vt => data[vt.key] && Object.keys(data[vt.key]).length > 0).length;
     const vacLabel = vacCount > 0 ? ` + ${vacCount} prázdnin.` : "";
     return `
       <div class="line-row">
@@ -167,53 +189,113 @@ class MHDTimetablePanel extends HTMLElement {
       </div>`;
   }
 
+  // -------------------------------------------------------------------------
+  // Vacation HTML
+  // -------------------------------------------------------------------------
   _vacationHTML() {
-    const periods = this._vacationPeriods();
-    const editIdx = this._editingVacIdx;
     return `
       <p class="hint">
-        Definujte pojmenovaná prázdninová období. Každé období dostane vlastní záložku v editoru
-        každé linky, kde zadáte odlišný jízdní řád. Pokud pro dané prázdniny řád nevyplníte,
-        použije se automaticky pracovní den.
+        <strong>Státní svátky</strong> jsou rozpoznány automaticky podle nastavení vaší země v Home Assistant.
+        Zde definujte školní a jiná prázdninová období.
       </p>
-      ${periods.length === 0
-        ? `<p class="hint" style="font-style:italic">Žádná období. Přidejte první níže.</p>`
-        : periods.map((p, i) => editIdx === i ? `
+      ${this._groupsSectionHTML()}
+      <div class="vac-divider"></div>
+      ${this._periodsSectionHTML()}`;
+  }
+
+  _groupsSectionHTML() {
+    const groups = this._vacationGroups();
+    const editIdx = this._editingGroupIdx;
+    return `
+      <div class="vac-section-title">Skupiny rozvrhu</div>
+      <p class="hint">Seskupte více období pod jeden jízdní řád. Např. "Prázdninový provoz" pro letní i vánoční prázdniny.</p>
+      ${groups.length === 0
+        ? `<p class="hint" style="font-style:italic">Žádné skupiny. Přidejte níže nebo nechte prázdné, pokud každé období má jiný rozvrh.</p>`
+        : groups.map((g, i) => editIdx === i ? `
           <div class="vac-edit-row">
-            <input class="vac-edit-label" value="${p.label || ""}">
-            <input class="vac-edit-start" type="date" value="${p.start}">
-            <span>–</span>
-            <input class="vac-edit-end" type="date" value="${p.end}">
-            <button class="vac-edit-save" data-idx="${i}">Uložit</button>
-            <button class="vac-edit-cancel">✕</button>
+            <input class="grp-edit-label" value="${g.label || ""}">
+            <button class="grp-edit-save" data-idx="${i}">Uložit</button>
+            <button class="grp-edit-cancel">✕</button>
           </div>` : `
           <div class="vac-row">
-            <span class="vac-name">${p.label || "Prázdniny"}</span>
-            <span class="vac-dates">${p.start} – ${p.end}</span>
-            <button class="vac-edit-btn" data-idx="${i}">Upravit</button>
-            <button class="vac-del" data-idx="${i}">✕</button>
+            <span class="grp-icon">🗂</span>
+            <span class="vac-name">${g.label || "Skupina"}</span>
+            <span class="vac-dates">${this._periodsInGroup(g.id).join(", ") || "—"}</span>
+            <button class="grp-edit-btn" data-idx="${i}">Upravit</button>
+            <button class="grp-del" data-idx="${i}">✕</button>
           </div>`).join("")}
+      <div class="vac-form">
+        <input class="grp-label" placeholder="Název skupiny (např. Prázdninový provoz)">
+        <button class="grp-add">+ Přidat skupinu</button>
+      </div>`;
+  }
+
+  _periodsInGroup(groupId) {
+    return this._vacationPeriods()
+      .filter(p => p.group_id === groupId)
+      .map(p => p.label || "Prázdniny");
+  }
+
+  _periodsSectionHTML() {
+    const periods = this._vacationPeriods();
+    const groups  = this._vacationGroups();
+    const editIdx = this._editingVacIdx;
+
+    const groupOptions = (selected) => [
+      `<option value="" ${!selected ? "selected" : ""}>— bez skupiny —</option>`,
+      ...groups.map(g => `<option value="${g.id}" ${selected === g.id ? "selected" : ""}>${g.label || "Skupina"}</option>`),
+    ].join("");
+
+    return `
+      <div class="vac-section-title">Prázdninová období</div>
+      ${periods.length === 0
+        ? `<p class="hint" style="font-style:italic">Žádná období. Přidejte první níže.</p>`
+        : periods.map((p, i) => {
+            const groupLabel = groups.find(g => g.id === p.group_id)?.label || "";
+            return editIdx === i ? `
+              <div class="vac-edit-row">
+                <input class="vac-edit-label" value="${p.label || ""}">
+                <input class="vac-edit-start" type="date" value="${p.start}">
+                <span>–</span>
+                <input class="vac-edit-end" type="date" value="${p.end}">
+                <select class="vac-edit-group">${groupOptions(p.group_id)}</select>
+                <button class="vac-edit-save" data-idx="${i}">Uložit</button>
+                <button class="vac-edit-cancel">✕</button>
+              </div>` : `
+              <div class="vac-row">
+                <span class="vac-name">${p.label || "Prázdniny"}</span>
+                <span class="vac-dates">${p.start} – ${p.end}</span>
+                ${groupLabel ? `<span class="vac-group-badge">${groupLabel}</span>` : ""}
+                <button class="vac-edit-btn" data-idx="${i}">Upravit</button>
+                <button class="vac-del" data-idx="${i}">✕</button>
+              </div>`;
+          }).join("")}
       <div class="vac-form">
         <input class="vac-label" placeholder="Název (např. Letní prázdniny)">
         <input class="vac-start" type="date">
         <span>–</span>
         <input class="vac-end" type="date">
+        ${groups.length > 0 ? `<select class="vac-new-group">${groupOptions("")}</select>` : ""}
         <button class="vac-add">+ Přidat</button>
       </div>`;
   }
 
+  // -------------------------------------------------------------------------
+  // Line editor
+  // -------------------------------------------------------------------------
   _lineEditorHTML() {
     const isNew = this._editorLine === "__new__";
     const ld = this._getLineData();
     const types = (ld.schedule_types || ["workday", "saturday", "sunday"]).filter(t => BASE_TYPES.includes(t));
     const tab = this._editorTab;
-    const vacPeriods = this._vacationPeriods();
+    const vacTabs = this._vacationTabs();
 
-    // All tabs: base types + one per vacation period
     const allTabs = [
-      ...types.map(t => ({ key: t, label: SCHEDULE_LABELS[t] })),
-      ...vacPeriods.map(vp => ({ key: `vacation_${vp.id}`, label: vp.label || "Prázdniny" })),
+      ...types.map(t => ({ key: t, label: SCHEDULE_LABELS[t], vacation: false })),
+      ...vacTabs.map(t => ({ ...t, vacation: true })),
     ];
+
+    const currentTabLabel = allTabs.find(t => t.key === tab)?.label || tab;
 
     return `
       <div class="le-header">
@@ -242,19 +324,21 @@ class MHDTimetablePanel extends HTMLElement {
                 ${SCHEDULE_LABELS[t]}
               </label>`).join("")}
           </div>
-          ${vacPeriods.length > 0 ? `<p class="hint" style="margin-top:8px">Prázdninové záložky jsou dostupné pro všechna definovaná období níže.</p>` : `<p class="hint" style="margin-top:8px">Prázdninová období definujte v záložce <em>Prázdninová období</em>.</p>`}
+          ${vacTabs.length > 0
+            ? `<p class="hint" style="margin-top:8px">Prázdninové záložky: <strong>${vacTabs.map(t => t.label).join(", ")}</strong></p>`
+            : `<p class="hint" style="margin-top:8px">Prázdninová období definujte v záložce <em>Prázdniny</em>.</p>`}
         </div>
       </div>
       <div class="sched-tabs">
         ${allTabs.map(t => `
-          <button class="stab ${t.key === tab ? "active" : ""}" data-type="${t.key}">
+          <button class="stab ${t.vacation ? "vac-stab" : ""} ${t.key === tab ? "active" : ""}" data-type="${t.key}">
             ${t.label}
           </button>`).join("")}
       </div>
       <div class="time-grid-wrap">
         <p class="hint">
           ${tab.startsWith("vacation_")
-            ? `Jízdní řád pro <strong>${allTabs.find(t => t.key === tab)?.label || "prázdniny"}</strong>. Pokud necháte prázdné, platí pracovní den.`
+            ? `Jízdní řád pro <strong>${currentTabLabel}</strong>. Prázdné = použije se pracovní den.`
             : "Kliknutím na hodinu rozbalíte minuty. Kliknutím na minutu ji přidáte nebo odeberete."}
         </p>
         <div class="time-grid">${this._timeGridHTML(ld[tab] || {}, tab)}</div>
@@ -297,7 +381,6 @@ class MHDTimetablePanel extends HTMLElement {
   _bind() {
     const root = this.shadowRoot;
 
-    // Stop selector
     root.querySelector(".stop-select")?.addEventListener("change", async e => {
       this._selectedId = e.target.value;
       this._editorLine = null;
@@ -306,16 +389,15 @@ class MHDTimetablePanel extends HTMLElement {
       this._render();
     });
 
-    // Tabs
     root.querySelectorAll(".tab").forEach(btn => {
       btn.addEventListener("click", () => {
         this._vacationView = btn.dataset.view === "vacation";
         this._editingVacIdx = null;
+        this._editingGroupIdx = null;
         this._render();
       });
     });
 
-    // Line actions
     root.querySelectorAll(".btn-edit").forEach(btn => {
       btn.addEventListener("click", () => {
         this._editorLine = btn.dataset.line;
@@ -341,7 +423,53 @@ class MHDTimetablePanel extends HTMLElement {
       this._render();
     });
 
-    // Vacation period management
+    root.querySelector(".save-btn")?.addEventListener("click", () => this._saveData());
+
+    // ---- Group handlers ----
+    root.querySelectorAll(".grp-edit-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        this._editingGroupIdx = parseInt(btn.dataset.idx);
+        this._render();
+      });
+    });
+    root.querySelector(".grp-edit-cancel")?.addEventListener("click", () => {
+      this._editingGroupIdx = null;
+      this._render();
+    });
+    root.querySelector(".grp-edit-save")?.addEventListener("click", () => {
+      const idx = this._editingGroupIdx;
+      const label = root.querySelector(".grp-edit-label")?.value.trim();
+      if (!label) { alert("Zadejte název skupiny."); return; }
+      this._data.vacation_groups[idx].label = label;
+      this._editingGroupIdx = null;
+      this._render();
+    });
+    root.querySelectorAll(".grp-del").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const idx = parseInt(btn.dataset.idx);
+        const removed = this._data.vacation_groups[idx];
+        if (!confirm(`Smazat skupinu "${removed.label}"? Všechna nastavení rozvrhu pro tuto skupinu budou ztracena.`)) return;
+        this._data.vacation_groups.splice(idx, 1);
+        // Clear group assignment from periods
+        this._data.vacation_periods.forEach(p => {
+          if (p.group_id === removed.id) delete p.group_id;
+        });
+        // Remove schedule keys from lines
+        const key = `vacation_${removed.id}`;
+        Object.values(this._data.lines || {}).forEach(line => { delete line[key]; });
+        this._render();
+      });
+    });
+    root.querySelector(".grp-add")?.addEventListener("click", () => {
+      const label = root.querySelector(".grp-label")?.value.trim();
+      if (!label) { alert("Zadejte název skupiny."); return; }
+      if (!this._data.vacation_groups) this._data.vacation_groups = [];
+      this._data.vacation_groups.push({ id: this._genId(), label });
+      root.querySelector(".grp-label").value = "";
+      this._render();
+    });
+
+    // ---- Period handlers ----
     root.querySelectorAll(".vac-edit-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         this._editingVacIdx = parseInt(btn.dataset.idx);
@@ -354,13 +482,16 @@ class MHDTimetablePanel extends HTMLElement {
     });
     root.querySelector(".vac-edit-save")?.addEventListener("click", () => {
       const idx = this._editingVacIdx;
-      const label = root.querySelector(".vac-edit-label")?.value.trim();
-      const start = root.querySelector(".vac-edit-start")?.value;
-      const end = root.querySelector(".vac-edit-end")?.value;
+      const label    = root.querySelector(".vac-edit-label")?.value.trim();
+      const start    = root.querySelector(".vac-edit-start")?.value;
+      const end      = root.querySelector(".vac-edit-end")?.value;
+      const groupId  = root.querySelector(".vac-edit-group")?.value || "";
       if (!start || !end) { alert("Zadejte datum začátku a konce."); return; }
-      this._data.vacation_periods[idx].label = label || "Prázdniny";
-      this._data.vacation_periods[idx].start = start;
-      this._data.vacation_periods[idx].end = end;
+      const p = this._data.vacation_periods[idx];
+      p.label = label || "Prázdniny";
+      p.start = start;
+      p.end   = end;
+      if (groupId) p.group_id = groupId; else delete p.group_id;
       this._editingVacIdx = null;
       this._render();
     });
@@ -369,34 +500,27 @@ class MHDTimetablePanel extends HTMLElement {
         const idx = parseInt(btn.dataset.idx);
         const removed = this._data.vacation_periods[idx];
         this._data.vacation_periods.splice(idx, 1);
-        if (removed?.id) {
+        // Remove orphaned standalone schedule key (only if no group)
+        if (removed?.id && !removed.group_id) {
           const key = `vacation_${removed.id}`;
-          Object.values(this._data.lines || {}).forEach(line => {
-            delete line[key];
-          });
+          Object.values(this._data.lines || {}).forEach(line => { delete line[key]; });
         }
         this._render();
       });
     });
     root.querySelector(".vac-add")?.addEventListener("click", () => {
-      const label = root.querySelector(".vac-label").value.trim();
-      const start = root.querySelector(".vac-start").value;
-      const end = root.querySelector(".vac-end").value;
+      const label   = root.querySelector(".vac-label")?.value.trim();
+      const start   = root.querySelector(".vac-start")?.value;
+      const end     = root.querySelector(".vac-end")?.value;
+      const groupId = root.querySelector(".vac-new-group")?.value || "";
       if (!start || !end) { alert("Zadejte datum začátku a konce."); return; }
       if (!this._data.vacation_periods) this._data.vacation_periods = [];
-      this._data.vacation_periods.push({
-        id: this._genId(),
-        label: label || "Prázdniny",
-        start,
-        end,
-      });
+      const entry = { id: this._genId(), label: label || "Prázdniny", start, end };
+      if (groupId) entry.group_id = groupId;
+      this._data.vacation_periods.push(entry);
       this._render();
     });
 
-    // Save
-    root.querySelector(".save-btn")?.addEventListener("click", () => this._saveData());
-
-    // Line editor
     if (this._editorLine !== null) this._bindLineEditor();
   }
 
@@ -422,11 +546,9 @@ class MHDTimetablePanel extends HTMLElement {
         this._syncFields();
         const checked = [...root.querySelectorAll(".type-cb:checked")].map(c => c.value);
         this._getLineData().schedule_types = checked;
-        // Stay on current tab if it's a vacation tab or is still checked; else switch to first checked
         if (!checked.includes(this._editorTab) && !this._editorTab.startsWith("vacation_")) {
-          this._editorTab = checked[0] || this._vacationPeriods().length > 0
-            ? `vacation_${this._vacationPeriods()[0]?.id}`
-            : "workday";
+          const vtabs = this._vacationTabs();
+          this._editorTab = checked[0] || (vtabs[0]?.key ?? "workday");
         }
         this._render();
       });
@@ -475,11 +597,11 @@ class MHDTimetablePanel extends HTMLElement {
   _syncFields() {
     const root = this.shadowRoot;
     const ld = this._getLineData();
-    const num = root.querySelector("#le-num");
-    const dir = root.querySelector("#le-dir");
+    const num   = root.querySelector("#le-num");
+    const dir   = root.querySelector("#le-dir");
     const route = root.querySelector("#le-route");
     if (num && this._editorLine === "__new__") this._newLineNum = num.value;
-    if (dir) ld.direction = dir.value;
+    if (dir)   ld.direction = dir.value;
     if (route) ld.route = route.value;
   }
 
@@ -602,56 +724,78 @@ class MHDTimetablePanel extends HTMLElement {
       }
       .add-btn:hover { background: var(--secondary-background-color); }
 
+      /* Vacation section */
+      .vac-section-title {
+        font-size: 0.78em; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.06em; color: var(--secondary-text-color);
+        margin: 16px 0 8px;
+      }
+      .vac-divider {
+        border: none; border-top: 1px solid var(--divider-color, rgba(0,0,0,.1));
+        margin: 20px 0;
+      }
+
       .vac-row {
-        display: flex; align-items: center; gap: 12px;
-        padding: 10px 16px;
+        display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+        padding: 10px 14px;
         background: var(--card-background-color, #fff);
         border-radius: 8px; margin-bottom: 6px;
       }
-      .vac-name { flex: 1; font-size: 0.95em; font-weight: 600; }
+      .grp-icon { font-size: 1em; }
+      .vac-name { flex: 1; font-size: 0.95em; font-weight: 600; min-width: 120px; }
       .vac-dates { font-size: 0.82em; color: var(--secondary-text-color); }
-      .vac-edit-btn {
+      .vac-group-badge {
+        font-size: 0.78em; padding: 2px 8px; border-radius: 10px;
+        background: var(--primary-color); color: var(--primary-color-text, #fff);
+        opacity: 0.8;
+      }
+      .vac-edit-btn, .grp-edit-btn {
         padding: 4px 10px; border-radius: 6px; font-size: 0.82em;
         background: none; border: 1px solid var(--primary-color);
-        color: var(--primary-color); cursor: pointer;
+        color: var(--primary-color); cursor: pointer; margin-left: auto;
       }
-      .vac-del { background: none; border: none; color: var(--error-color, #e53935); cursor: pointer; font-size: 1em; }
+      .vac-del, .grp-del {
+        background: none; border: none;
+        color: var(--error-color, #e53935); cursor: pointer; font-size: 1em;
+      }
+
       .vac-edit-row {
         display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-        padding: 10px 16px;
+        padding: 10px 14px;
         background: var(--secondary-background-color);
         border-radius: 8px; margin-bottom: 6px;
         border: 1px solid var(--primary-color);
       }
-      .vac-edit-row input {
+      .vac-edit-row input, .vac-edit-row select {
         border: 1px solid var(--divider-color, rgba(0,0,0,.2));
         border-radius: 6px; padding: 6px 9px;
         background: var(--card-background-color, #fff);
         color: var(--primary-text-color); font-size: 0.9em;
       }
-      .vac-edit-label { flex: 1; min-width: 130px; }
-      .vac-edit-save {
+      .vac-edit-label, .grp-edit-label { flex: 1; min-width: 130px; }
+      .vac-edit-save, .grp-edit-save {
         padding: 6px 12px; border-radius: 6px;
         background: var(--primary-color); color: var(--primary-color-text, #fff);
         border: none; cursor: pointer; font-size: 0.88em; font-weight: 600;
       }
-      .vac-edit-cancel {
-        background: none; border: none; color: var(--error-color, #e53935);
-        cursor: pointer; font-size: 1em;
+      .vac-edit-cancel, .grp-edit-cancel {
+        background: none; border: none;
+        color: var(--error-color, #e53935); cursor: pointer; font-size: 1em;
       }
+
       .vac-form {
         display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-        margin-top: 16px; padding-top: 14px;
+        margin-top: 10px; padding-top: 12px;
         border-top: 1px dashed var(--divider-color, rgba(0,0,0,.15));
       }
-      .vac-form input {
+      .vac-form input, .vac-form select {
         border: 1px solid var(--divider-color, rgba(0,0,0,.2));
         border-radius: 6px; padding: 7px 10px;
         background: var(--card-background-color, #fff);
         color: var(--primary-text-color); font-size: 0.9em;
       }
-      .vac-label { flex: 1; min-width: 140px; }
-      .vac-add {
+      .vac-label, .grp-label { flex: 1; min-width: 140px; }
+      .vac-add, .grp-add {
         padding: 7px 14px; border-radius: 6px;
         background: var(--primary-color); color: var(--primary-color-text, #fff);
         border: none; cursor: pointer; font-size: 0.9em;
@@ -674,9 +818,7 @@ class MHDTimetablePanel extends HTMLElement {
       .save-btn.saving { opacity: 0.6; pointer-events: none; }
 
       /* Line editor */
-      .le-header {
-        display: flex; align-items: center; gap: 14px; margin-bottom: 18px;
-      }
+      .le-header { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
       .back-btn {
         background: none; border: none; color: var(--primary-color);
         font-size: 0.95em; cursor: pointer; padding: 6px 0;
@@ -731,15 +873,10 @@ class MHDTimetablePanel extends HTMLElement {
         color: var(--primary-color-text, #fff);
         border-color: var(--primary-color);
       }
-      .stab[data-type^="vacation_"] {
-        border-style: dashed;
-      }
-      .stab[data-type^="vacation_"].active {
-        border-style: solid;
-      }
+      .stab.vac-stab { border-style: dashed; }
+      .stab.vac-stab.active { border-style: solid; }
 
       .time-grid-wrap { margin-bottom: 80px; }
-
       .hour-row { margin-bottom: 3px; }
       .hour-hdr {
         display: flex; align-items: center; gap: 10px;

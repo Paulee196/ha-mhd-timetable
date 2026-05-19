@@ -2,6 +2,8 @@
 
 Custom integrace pro Home Assistant umožňující správu jízdních řádů MHD přímo z UI.
 
+[![Přidat do HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Paulee196&repository=ha-mhd-timetable&category=integration)
+
 ## Funkce
 
 - Přidání zastávky přes průvodce (Settings → Integrations)

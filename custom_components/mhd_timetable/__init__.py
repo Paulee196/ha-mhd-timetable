@@ -4,6 +4,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import pathlib
+import shutil
 
 import voluptuous as vol
 from homeassistant.components import websocket_api
@@ -94,7 +96,26 @@ async def _ws_save_data(
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.data.setdefault(DOMAIN, {})
+    await _ensure_www_files(hass)
     return True
+
+
+async def _ensure_www_files(hass: HomeAssistant) -> None:
+    """Copy frontend JS files from integration folder to /config/www/ on every startup."""
+    src_dir = pathlib.Path(__file__).parent / "www"
+    dst_dir = pathlib.Path(hass.config.config_dir) / "www" / "mhd-timetable-card"
+
+    def _copy():
+        if not src_dir.exists():
+            return
+        dst_dir.mkdir(parents=True, exist_ok=True)
+        for src_file in src_dir.glob("*.js"):
+            dst_file = dst_dir / src_file.name
+            if not dst_file.exists() or src_file.stat().st_mtime > dst_file.stat().st_mtime:
+                shutil.copy2(src_file, dst_file)
+                _LOGGER.debug("Copied %s to www/mhd-timetable-card/", src_file.name)
+
+    await hass.async_add_executor_job(_copy)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

@@ -112,8 +112,8 @@ def _get_schedule_type(data: dict, today: date) -> str:
             try:
                 start = date.fromisoformat(period["start"])
                 end = date.fromisoformat(period["end"])
-                if start <= today <= end:
-                    return "school_vacation"
+                if start <= today <= end and period.get("id"):
+                    return f"vacation_{period['id']}"
             except (KeyError, ValueError):
                 pass
 
@@ -128,8 +128,10 @@ def _compute_next_departures(data: dict, now: datetime) -> dict:
     today = now.date()
     schedule_type = _get_schedule_type(data, today)
 
-    # Fallback chain: holiday→sunday, school_vacation→workday
-    fallback = {"holiday": "sunday", "school_vacation": "workday"}
+    # Fallback chain: holiday→sunday, vacation_*→workday
+    fallback: dict[str, str] = {"holiday": "sunday"}
+    if schedule_type.startswith("vacation_"):
+        fallback[schedule_type] = "workday"
 
     next_buses: list[dict] = []
     routes: list[dict] = []

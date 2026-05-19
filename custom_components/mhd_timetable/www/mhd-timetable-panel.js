@@ -8,9 +8,8 @@ const SCHEDULE_LABELS = {
   saturday: "Sobota",
   sunday: "Neděle",
   holiday: "Státní svátek",
-  school_vacation: "Školní prázdniny",
 };
-const ALL_TYPES = Object.keys(SCHEDULE_LABELS);
+const BASE_TYPES = Object.keys(SCHEDULE_LABELS);
 
 class MHDTimetablePanel extends HTMLElement {
   constructor() {
@@ -59,9 +58,27 @@ class MHDTimetablePanel extends HTMLElement {
         type: "mhd_timetable/get_data",
         entry_id: this._selectedId,
       });
+      this._ensureVacationIds();
     } catch (e) {
       this._data = null;
     }
+  }
+
+  // Ensure all vacation periods have stable IDs (migration for old data)
+  _ensureVacationIds() {
+    const periods = this._data?.vacation_periods;
+    if (!periods) return;
+    periods.forEach(p => {
+      if (!p.id) p.id = this._genId();
+    });
+  }
+
+  _genId() {
+    return "vp_" + Math.random().toString(36).slice(2, 7);
+  }
+
+  _vacationPeriods() {
+    return this._data?.vacation_periods || [];
   }
 
   // -------------------------------------------------------------------------
@@ -106,7 +123,7 @@ class MHDTimetablePanel extends HTMLElement {
     return `
       <div class="tabs">
         <button class="tab ${!this._vacationView ? "active" : ""}" data-view="lines">Linky</button>
-        <button class="tab ${this._vacationView ? "active" : ""}" data-view="vacation">Prázdniny</button>
+        <button class="tab ${this._vacationView ? "active" : ""}" data-view="vacation">Prázdninová období</button>
       </div>
       <div class="content">
         ${!this._vacationView ? `
@@ -124,14 +141,22 @@ class MHDTimetablePanel extends HTMLElement {
   }
 
   _lineRowHTML(num, data) {
-    const types = (data.schedule_types || []).map(t => SCHEDULE_LABELS[t] || t).join(", ");
+    const types = (data.schedule_types || [])
+      .filter(t => BASE_TYPES.includes(t))
+      .map(t => SCHEDULE_LABELS[t] || t).join(", ");
+    const vacPeriods = this._vacationPeriods();
+    const vacCount = vacPeriods.filter(vp => {
+      const key = `vacation_${vp.id}`;
+      return data[key] && Object.keys(data[key]).length > 0;
+    }).length;
+    const vacLabel = vacCount > 0 ? ` + ${vacCount} prázdnin.` : "";
     return `
       <div class="line-row">
         <div class="lr-left">
           <span class="lr-num">${num}</span>
           <div class="lr-meta">
             <span class="lr-dir">${data.direction || ""}</span>
-            <span class="lr-types">${types}</span>
+            <span class="lr-types">${types}${vacLabel}</span>
           </div>
         </div>
         <div class="lr-actions">
@@ -142,15 +167,21 @@ class MHDTimetablePanel extends HTMLElement {
   }
 
   _vacationHTML() {
-    const periods = this._data?.vacation_periods || [];
+    const periods = this._vacationPeriods();
     return `
-      <p class="hint">Období kdy platí rozvrh <em>Školní prázdniny</em> místo pracovního dne.</p>
-      ${periods.map((p, i) => `
-        <div class="vac-row">
-          <span class="vac-name">${p.label || "Prázdniny"}</span>
-          <span class="vac-dates">${p.start} – ${p.end}</span>
-          <button class="vac-del" data-idx="${i}">✕</button>
-        </div>`).join("")}
+      <p class="hint">
+        Definujte pojmenovaná prázdninová období. Každé období dostane vlastní záložku v editoru
+        každé linky, kde zadáte odlišný jízdní řád. Pokud pro dané prázdniny řád nevyplníte,
+        použije se automaticky pracovní den.
+      </p>
+      ${periods.length === 0
+        ? `<p class="hint" style="font-style:italic">Žádná období. Přidejte první níže.</p>`
+        : periods.map((p, i) => `
+          <div class="vac-row">
+            <span class="vac-name">${p.label || "Prázdniny"}</span>
+            <span class="vac-dates">${p.start} – ${p.end}</span>
+            <button class="vac-del" data-idx="${i}">✕</button>
+          </div>`).join("")}
       <div class="vac-form">
         <input class="vac-label" placeholder="Název (např. Letní prázdniny)">
         <input class="vac-start" type="date">
@@ -163,8 +194,16 @@ class MHDTimetablePanel extends HTMLElement {
   _lineEditorHTML() {
     const isNew = this._editorLine === "__new__";
     const ld = this._getLineData();
-    const types = ld.schedule_types || ["workday", "saturday", "sunday"];
+    const types = (ld.schedule_types || ["workday", "saturday", "sunday"]).filter(t => BASE_TYPES.includes(t));
     const tab = this._editorTab;
+    const vacPeriods = this._vacationPeriods();
+
+    // All tabs: base types + one per vacation period
+    const allTabs = [
+      ...types.map(t => ({ key: t, label: SCHEDULE_LABELS[t] })),
+      ...vacPeriods.map(vp => ({ key: `vacation_${vp.id}`, label: vp.label || "Prázdniny" })),
+    ];
+
     return `
       <div class="le-header">
         <button class="back-btn">← Zpět</button>
@@ -184,24 +223,29 @@ class MHDTimetablePanel extends HTMLElement {
           <textarea id="le-route" rows="2">${ld.route || ""}</textarea>
         </div>
         <div class="field">
-          <label>Platí pro</label>
+          <label>Aktivní rozvrhy</label>
           <div class="type-checks">
-            ${ALL_TYPES.map(t => `
+            ${BASE_TYPES.map(t => `
               <label class="type-chip ${types.includes(t) ? "on" : ""}">
                 <input type="checkbox" class="type-cb" value="${t}" ${types.includes(t) ? "checked" : ""}>
                 ${SCHEDULE_LABELS[t]}
               </label>`).join("")}
           </div>
+          ${vacPeriods.length > 0 ? `<p class="hint" style="margin-top:8px">Prázdninové záložky jsou dostupné pro všechna definovaná období níže.</p>` : `<p class="hint" style="margin-top:8px">Prázdninová období definujte v záložce <em>Prázdninová období</em>.</p>`}
         </div>
       </div>
       <div class="sched-tabs">
-        ${types.map(t => `
-          <button class="stab ${t === tab ? "active" : ""}" data-type="${t}">
-            ${SCHEDULE_LABELS[t]}
+        ${allTabs.map(t => `
+          <button class="stab ${t.key === tab ? "active" : ""}" data-type="${t.key}">
+            ${t.label}
           </button>`).join("")}
       </div>
       <div class="time-grid-wrap">
-        <p class="hint">Kliknutím na hodinu rozbalíte minuty. Kliknutím na minutu ji přidáte nebo odeberete.</p>
+        <p class="hint">
+          ${tab.startsWith("vacation_")
+            ? `Jízdní řád pro <strong>${allTabs.find(t => t.key === tab)?.label || "prázdniny"}</strong>. Pokud necháte prázdné, platí pracovní den.`
+            : "Kliknutím na hodinu rozbalíte minuty. Kliknutím na minutu ji přidáte nebo odeberete."}
+        </p>
         <div class="time-grid">${this._timeGridHTML(ld[tab] || {}, tab)}</div>
       </div>
       <div class="footer">
@@ -263,7 +307,9 @@ class MHDTimetablePanel extends HTMLElement {
     root.querySelectorAll(".btn-edit").forEach(btn => {
       btn.addEventListener("click", () => {
         this._editorLine = btn.dataset.line;
-        this._editorTab = (this._data.lines[btn.dataset.line]?.schedule_types || ["workday"])[0];
+        const ld = this._data.lines[btn.dataset.line];
+        const types = (ld?.schedule_types || ["workday"]).filter(t => BASE_TYPES.includes(t));
+        this._editorTab = types[0] || "workday";
         this._expandedHours = {};
         this._render();
       });
@@ -283,10 +329,19 @@ class MHDTimetablePanel extends HTMLElement {
       this._render();
     });
 
-    // Vacation
+    // Vacation period management
     root.querySelectorAll(".vac-del").forEach(btn => {
       btn.addEventListener("click", () => {
-        this._data.vacation_periods.splice(parseInt(btn.dataset.idx), 1);
+        const idx = parseInt(btn.dataset.idx);
+        const removed = this._data.vacation_periods[idx];
+        this._data.vacation_periods.splice(idx, 1);
+        // Remove orphaned vacation schedule keys from all lines
+        if (removed?.id) {
+          const key = `vacation_${removed.id}`;
+          Object.values(this._data.lines || {}).forEach(line => {
+            delete line[key];
+          });
+        }
         this._render();
       });
     });
@@ -296,7 +351,12 @@ class MHDTimetablePanel extends HTMLElement {
       const end = root.querySelector(".vac-end").value;
       if (!start || !end) { alert("Zadejte datum začátku a konce."); return; }
       if (!this._data.vacation_periods) this._data.vacation_periods = [];
-      this._data.vacation_periods.push({ label: label || "Prázdniny", start, end });
+      this._data.vacation_periods.push({
+        id: this._genId(),
+        label: label || "Prázdniny",
+        start,
+        end,
+      });
       this._render();
     });
 
@@ -329,7 +389,12 @@ class MHDTimetablePanel extends HTMLElement {
         this._syncFields();
         const checked = [...root.querySelectorAll(".type-cb:checked")].map(c => c.value);
         this._getLineData().schedule_types = checked;
-        if (!checked.includes(this._editorTab) && checked.length > 0) this._editorTab = checked[0];
+        // Stay on current tab if it's a vacation tab or is still checked; else switch to first checked
+        if (!checked.includes(this._editorTab) && !this._editorTab.startsWith("vacation_")) {
+          this._editorTab = checked[0] || this._vacationPeriods().length > 0
+            ? `vacation_${this._vacationPeriods()[0]?.id}`
+            : "workday";
+        }
         this._render();
       });
     });
@@ -390,7 +455,7 @@ class MHDTimetablePanel extends HTMLElement {
       if (!this._data._newLine) this._data._newLine = {
         direction: "", route: "", valid_from: new Date().toISOString().slice(0, 10),
         schedule_types: ["workday", "saturday", "sunday"],
-        workday: {}, saturday: {}, sunday: {}, holiday: {}, school_vacation: {},
+        workday: {}, saturday: {}, sunday: {}, holiday: {},
       };
       return this._data._newLine;
     }
@@ -510,7 +575,7 @@ class MHDTimetablePanel extends HTMLElement {
         background: var(--card-background-color, #fff);
         border-radius: 8px; margin-bottom: 6px;
       }
-      .vac-name { flex: 1; font-size: 0.95em; }
+      .vac-name { flex: 1; font-size: 0.95em; font-weight: 600; }
       .vac-dates { font-size: 0.82em; color: var(--secondary-text-color); }
       .vac-del { background: none; border: none; color: var(--error-color, #e53935); cursor: pointer; font-size: 1em; }
       .vac-form {
@@ -604,6 +669,12 @@ class MHDTimetablePanel extends HTMLElement {
         background: var(--primary-color);
         color: var(--primary-color-text, #fff);
         border-color: var(--primary-color);
+      }
+      .stab[data-type^="vacation_"] {
+        border-style: dashed;
+      }
+      .stab[data-type^="vacation_"].active {
+        border-style: solid;
       }
 
       .time-grid-wrap { margin-bottom: 80px; }

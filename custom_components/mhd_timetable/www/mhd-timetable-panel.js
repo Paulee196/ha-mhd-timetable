@@ -205,6 +205,16 @@ class MHDTimetablePanel extends HTMLElement {
             <em>Uložit změny</em> dole. Senzor se aktualizuje okamžitě.
           </div>
         </div>
+
+        <div class="help-divider"></div>
+
+        <div class="help-card-title">Přidání karty na dashboard</div>
+        <p style="font-size:0.88em;color:var(--secondary-text-color);margin:0 0 8px">
+          Dashboard → upravit → Přidat kartu → Manuální → vložit:
+        </p>
+        <div class="help-code" id="help-card-yaml">type: custom:mhd-timetable-card
+entity: sensor.mhd_název_zastávky</div>
+        <button class="help-copy-btn" data-copy="help-card-yaml">Kopírovat</button>
       </div>`;
   }
 
@@ -450,6 +460,18 @@ class MHDTimetablePanel extends HTMLElement {
     root.querySelector(".help-btn")?.addEventListener("click", () => {
       this._helpVisible = !this._helpVisible;
       this._render();
+    });
+
+    root.querySelector(".help-copy-btn")?.addEventListener("click", btn => {
+      const targetId = btn.target.dataset.copy;
+      const text = root.getElementById(targetId)?.textContent?.trim();
+      if (!text) return;
+      navigator.clipboard?.writeText(text).then(() => {
+        btn.target.textContent = "Zkopírováno ✓";
+        setTimeout(() => { btn.target.textContent = "Kopírovat"; }, 2000);
+      }).catch(() => {
+        btn.target.textContent = "Kopírovat";
+      });
     });
 
     root.querySelector(".stop-select")?.addEventListener("change", async e => {
@@ -770,6 +792,29 @@ class MHDTimetablePanel extends HTMLElement {
         color: var(--primary-text-color);
       }
       .help-section:last-child { margin-bottom: 0; }
+      .help-divider {
+        border: none; border-top: 1px solid var(--divider-color, rgba(0,0,0,.1));
+        margin: 14px 0;
+      }
+      .help-card-title {
+        font-size: 0.82em; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.05em; color: var(--secondary-text-color);
+        margin-bottom: 8px;
+      }
+      .help-code {
+        font-family: monospace; font-size: 0.88em;
+        background: var(--secondary-background-color);
+        border-radius: 6px; padding: 10px 12px;
+        white-space: pre; color: var(--primary-text-color);
+        margin-bottom: 8px;
+      }
+      .help-copy-btn {
+        padding: 5px 14px; border-radius: 6px; font-size: 0.82em;
+        background: none; border: 1px solid var(--primary-color);
+        color: var(--primary-color); cursor: pointer;
+      }
+      .help-copy-btn:hover { background: var(--primary-color); color: var(--primary-color-text, #fff); }
+
       .help-step {
         min-width: 24px; height: 24px; border-radius: 50%;
         background: var(--primary-color); color: var(--primary-color-text, #fff);

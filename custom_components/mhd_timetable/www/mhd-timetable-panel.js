@@ -23,6 +23,7 @@ class MHDTimetablePanel extends HTMLElement {
     this._loading = true;
     this._saving = false;
     this._editorLine = null;
+    this._newLineNum = "";
     this._editorTab = "workday";
     this._expandedHours = {};
     this._vacationView = false;
@@ -172,7 +173,7 @@ class MHDTimetablePanel extends HTMLElement {
       <div class="le-fields">
         <div class="field">
           <label>Číslo linky</label>
-          <input id="le-num" value="${isNew ? "" : this._editorLine}" ${isNew ? "" : "readonly"}>
+          <input id="le-num" value="${isNew ? this._newLineNum : this._editorLine}" ${isNew ? "" : "readonly"}>
         </div>
         <div class="field">
           <label>Směr (cílová zastávka)</label>
@@ -276,6 +277,7 @@ class MHDTimetablePanel extends HTMLElement {
     });
     root.querySelector(".add-btn")?.addEventListener("click", () => {
       this._editorLine = "__new__";
+      this._newLineNum = "";
       this._editorTab = "workday";
       this._expandedHours = {};
       this._render();
@@ -375,8 +377,10 @@ class MHDTimetablePanel extends HTMLElement {
   _syncFields() {
     const root = this.shadowRoot;
     const ld = this._getLineData();
+    const num = root.querySelector("#le-num");
     const dir = root.querySelector("#le-dir");
     const route = root.querySelector("#le-route");
+    if (num && this._editorLine === "__new__") this._newLineNum = num.value;
     if (dir) ld.direction = dir.value;
     if (route) ld.route = route.value;
   }

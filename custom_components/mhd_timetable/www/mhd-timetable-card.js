@@ -1,7 +1,7 @@
 /**
  * MHD Timetable Card – departure display for Home Assistant Lovelace
  */
-var MHD_CARD_VERSION = "0.7.6";
+var MHD_CARD_VERSION = "0.7.7";
 class MHDTimetableCard extends HTMLElement {
   constructor() {
     super();
@@ -198,9 +198,16 @@ class MHDTimetableCard extends HTMLElement {
     return document.createElement("mhd-timetable-card-editor");
   }
 
-  static getStubConfig() {
+  static getStubConfig(hass) {
+    var entity = "";
+    if (hass) {
+      var found = Object.keys(hass.states).find(function(id) {
+        return id.indexOf("sensor.mhd_") === 0;
+      });
+      if (found) entity = found;
+    }
     return {
-      entity: "sensor.mhd_next",
+      entity: entity,
       departures_count: 3,
       header_icon: "🚌",
       urgent_minutes: 5,
@@ -217,7 +224,12 @@ class MHDTimetableCardEditor extends HTMLElement {
     this._config = Object.assign({}, config);
     this._render();
   }
-  set hass(hass) { this._hass = hass; }
+
+  set hass(hass) {
+    this._hass = hass;
+    var picker = this.querySelector("#mhd-ep");
+    if (picker) picker.hass = hass;
+  }
 
   _fire() {
     this.dispatchEvent(new CustomEvent("config-changed", {
@@ -319,9 +331,9 @@ class MHDTimetableCardEditor extends HTMLElement {
           <div class="sb">
             <div class="row full">
               <div class="field">
-                <label>Senzor</label>
-                <input name="entity" type="text" value="${entity}" placeholder="sensor.mhd_...">
-                <p class="hint">Entita zastávky vytvořená doplňkem (sensor.mhd_…)</p>
+                <label>Senzor zastávky</label>
+                <ha-entity-picker id="mhd-ep" allow-custom-entity></ha-entity-picker>
+                <p class="hint">Sensor zastávky vytvořený doplňkem MHD.</p>
               </div>
             </div>
             <div class="row full" style="margin-top:10px">
@@ -383,6 +395,21 @@ class MHDTimetableCardEditor extends HTMLElement {
     `;
 
     this._bindInputs();
+    this._setupEntityPicker(entity);
+  }
+
+  _setupEntityPicker(entity) {
+    var self = this;
+    var picker = this.querySelector("#mhd-ep");
+    if (!picker) return;
+    picker.hass = this._hass;
+    picker.value = entity;
+    picker.includeDomains = ["sensor"];
+    picker.addEventListener("value-changed", function(e) {
+      self._config = Object.assign({}, self._config);
+      self._config.entity = e.detail.value || "";
+      self._fire();
+    });
   }
 
   _bindInputs() {

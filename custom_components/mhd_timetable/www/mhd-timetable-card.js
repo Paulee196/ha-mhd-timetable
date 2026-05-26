@@ -1,7 +1,7 @@
 /**
  * MHD Timetable Card – departure display for Home Assistant Lovelace
  */
-var MHD_CARD_VERSION = "0.7.5";
+var MHD_CARD_VERSION = "0.7.6";
 class MHDTimetableCard extends HTMLElement {
   constructor() {
     super();
@@ -41,7 +41,7 @@ class MHDTimetableCard extends HTMLElement {
     const attr = state ? state.attributes : {};
     const count = parseInt(this._cfg("departures_count", 3), 10) || 3;
     const departures = (attr.next_departures || []).slice(0, count);
-    const stopName = attr.stop || this._config.entity;
+    const stopName = this._cfg("header_text", null) || attr.stop || this._config.entity;
     const rawIcon = this._cfg("header_icon", "🚌");
     const iconHtml = (rawIcon.indexOf("mdi:") === 0 || rawIcon.indexOf("hass:") === 0)
       ? `<ha-icon icon="${rawIcon}" class="header-ha-icon"></ha-icon>`
@@ -228,12 +228,13 @@ class MHDTimetableCardEditor extends HTMLElement {
 
   _render() {
     var c = this._config || {};
-    var entity  = c.entity || "";
-    var count   = c.departures_count !== undefined ? c.departures_count : 3;
-    var icon    = c.header_icon !== undefined ? c.header_icon : "🚌";
-    var urgent  = c.urgent_minutes !== undefined ? c.urgent_minutes : 5;
-    var warning = c.warning_minutes !== undefined ? c.warning_minutes : 10;
-    var isMdi   = icon.indexOf("mdi:") === 0 || icon.indexOf("hass:") === 0;
+    var entity     = c.entity || "";
+    var headerText = c.header_text || "";
+    var count      = c.departures_count !== undefined ? c.departures_count : 3;
+    var icon       = c.header_icon !== undefined ? c.header_icon : "🚌";
+    var urgent     = c.urgent_minutes !== undefined ? c.urgent_minutes : 5;
+    var warning    = c.warning_minutes !== undefined ? c.warning_minutes : 10;
+    var isMdi      = icon.indexOf("mdi:") === 0 || icon.indexOf("hass:") === 0;
 
     this.innerHTML = `
       <style>
@@ -321,6 +322,13 @@ class MHDTimetableCardEditor extends HTMLElement {
                 <label>Senzor</label>
                 <input name="entity" type="text" value="${entity}" placeholder="sensor.mhd_...">
                 <p class="hint">Entita zastávky vytvořená doplňkem (sensor.mhd_…)</p>
+              </div>
+            </div>
+            <div class="row full" style="margin-top:10px">
+              <div class="field">
+                <label>Vlastní název zastávky</label>
+                <input name="header_text" type="text" value="${headerText}" placeholder="Ponech prázdné = název z integrace">
+                <p class="hint">Přepíše název zobrazený v hlavičce karty.</p>
               </div>
             </div>
           </div>

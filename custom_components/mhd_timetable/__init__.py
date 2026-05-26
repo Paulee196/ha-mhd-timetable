@@ -10,7 +10,6 @@ import uuid
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
@@ -115,40 +114,48 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     except Exception as exc:
         _LOGGER.warning("Could not register MHD static path: %s", exc)
 
-    # Register in Lovelace resource storage - must wait until HA is fully started
-    # so that the lovelace component is loaded and hass.data["lovelace"] exists
-    async def _register(_event=None):
-        await _async_register_lovelace_resource(hass, _card_js_url())
-
-    if hass.is_running:
-        # Integration added while HA is already running (UI install)
-        hass.async_create_task(_register())
-    else:
-        # HA is starting up - lovelace not ready yet, wait for it
-        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _register)
+    # Update Lovelace resource registration immediately - the Store is a plain JSON
+    # file and can be written at any point. Doing it here (before HTTP serves any
+    # requests) ensures the browser always gets the versioned URL on first load.
+    await _async_register_lovelace_resource(hass, _card_js_url())
 
     return True
 
 
 async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> None:
-    """Add card JS to Lovelace resources, replacing any previous version of the same file."""
+    """Ensure exactly one correct registration for the card JS in Lovelace resources."""
+    filename = "mhd-timetable-card.js"
     base = url.split("?")[0]
     try:
         store = Store(hass, 1, "lovelace_resources")
         data = await store.async_load() or {"items": []}
         items = data.setdefault("items", [])
 
-        # Remove stale entries for this file (different ?v= or bare URL)
-        old = [i for i in items if i.get("url", "").split("?")[0] == base]
-        if len(old) == 1 and old[0].get("url") == url:
+        all_for_file = [i for i in items if filename in i.get("url", "")]
+        hacs_entries = [i for i in all_for_file if "/hacsfiles/" in i.get("url", "")]
+        our_entries  = [i for i in all_for_file if i not in hacs_entries]
+
+        if hacs_entries:
+            # HACS manages this file – remove any leftover registrations from us
+            # so there is no double-load (HACS handles versioning via hacstag)
+            if our_entries:
+                for item in our_entries:
+                    items.remove(item)
+                await store.async_save(data)
+                _LOGGER.info("Removed duplicate MHD card registration (HACS manages it)")
+            else:
+                _LOGGER.debug("HACS manages card JS registration, nothing to do")
+            return
+
+        # No HACS entry – manual install, maintain our own versioned registration
+        if len(our_entries) == 1 and our_entries[0].get("url") == url:
             _LOGGER.debug("Lovelace resource up to date: %s", url)
             return
-        for item in old:
+        for item in our_entries:
             items.remove(item)
-
         items.append({"id": str(uuid.uuid4()), "type": "module", "url": url})
         await store.async_save(data)
-        _LOGGER.info("Lovelace resource updated: %s", url)
+        _LOGGER.info("Lovelace resource registered: %s", url)
     except Exception as exc:
         _LOGGER.warning("Could not register Lovelace resource %s: %s", url, exc)
 

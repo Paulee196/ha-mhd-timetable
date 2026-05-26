@@ -162,7 +162,7 @@ def _compute_next_departures(data: dict, now: datetime, country: str = "CZ") -> 
 
     next_buses.sort(key=lambda x: x["minutes_until"])
     return {
-        "next_departures": next_buses[:3],
+        "next_departures": next_buses[:10],
         "routes": routes,
         "stop": data.get("stop", ""),
         "schedule_type": schedule_type,

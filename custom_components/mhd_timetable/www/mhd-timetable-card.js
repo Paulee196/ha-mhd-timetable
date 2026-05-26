@@ -1,6 +1,7 @@
 /**
  * MHD Timetable Card – departure display for Home Assistant Lovelace
  */
+var MHD_CARD_VERSION = "0.7.5";
 class MHDTimetableCard extends HTMLElement {
   constructor() {
     super();
@@ -209,7 +210,7 @@ class MHDTimetableCard extends HTMLElement {
 }
 
 // ---------------------------------------------------------------------------
-// Visual card editor
+// Visual card editor – accordion sections, live preview via HA
 // ---------------------------------------------------------------------------
 class MHDTimetableCardEditor extends HTMLElement {
   setConfig(config) {
@@ -227,109 +228,156 @@ class MHDTimetableCardEditor extends HTMLElement {
 
   _render() {
     var c = this._config || {};
-    var entity    = c.entity || "";
-    var count     = c.departures_count !== undefined ? c.departures_count : 3;
-    var icon      = c.header_icon !== undefined ? c.header_icon : "🚌";
-    var urgent    = c.urgent_minutes !== undefined ? c.urgent_minutes : 5;
-    var warning   = c.warning_minutes !== undefined ? c.warning_minutes : 10;
+    var entity  = c.entity || "";
+    var count   = c.departures_count !== undefined ? c.departures_count : 3;
+    var icon    = c.header_icon !== undefined ? c.header_icon : "🚌";
+    var urgent  = c.urgent_minutes !== undefined ? c.urgent_minutes : 5;
+    var warning = c.warning_minutes !== undefined ? c.warning_minutes : 10;
+    var isMdi   = icon.indexOf("mdi:") === 0 || icon.indexOf("hass:") === 0;
 
     this.innerHTML = `
       <style>
-        .editor { font-family: var(--paper-font-body1_-_font-family, inherit); }
-        .section {
-          font-size: 0.72em; font-weight: 700; text-transform: uppercase;
-          letter-spacing: 0.07em; color: var(--secondary-text-color);
-          margin: 18px 0 8px;
+        .ew { border: 1px solid var(--divider-color, rgba(0,0,0,.15)); border-radius: 12px; overflow: hidden; }
+
+        .ew-title {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 13px 16px;
+          background: var(--secondary-background-color);
+          border-bottom: 1px solid var(--divider-color, rgba(0,0,0,.1));
         }
-        .section:first-child { margin-top: 4px; }
-        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+        .ew-title-name { font-weight: 700; font-size: 0.95em; color: var(--primary-text-color); }
+        .ew-version {
+          font-size: 0.7em; padding: 2px 9px;
+          border: 1px solid var(--divider-color, rgba(0,0,0,.2));
+          border-radius: 12px; color: var(--secondary-text-color);
+        }
+
+        details { border-bottom: 1px solid var(--divider-color, rgba(0,0,0,.08)); }
+        details:last-child { border-bottom: none; }
+
+        summary {
+          padding: 13px 16px; cursor: pointer;
+          font-weight: 600; font-size: 0.9em;
+          color: var(--primary-text-color);
+          display: flex; align-items: center; justify-content: space-between;
+          list-style: none; user-select: none;
+          transition: background 0.15s;
+        }
+        summary::-webkit-details-marker { display: none; }
+        summary::after { content: "▼"; font-size: 0.6em; color: var(--secondary-text-color); transition: transform 0.2s; }
+        details[open] > summary::after { transform: rotate(180deg); }
+        summary:hover { background: var(--secondary-background-color); }
+
+        .sb {
+          padding: 12px 16px 16px;
+          border-top: 1px solid var(--divider-color, rgba(0,0,0,.06));
+        }
+
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
         .row.full { grid-template-columns: 1fr; }
         .field label {
-          display: block; font-size: 0.82em; font-weight: 600;
-          color: var(--primary-text-color); margin-bottom: 5px;
+          display: block; font-size: 0.75em; font-weight: 700;
+          text-transform: uppercase; letter-spacing: 0.04em;
+          color: var(--secondary-text-color); margin-bottom: 5px;
         }
-        .field .hint {
-          font-size: 0.74em; color: var(--secondary-text-color); margin-top: 4px; line-height: 1.4;
-        }
+        .hint { font-size: 0.74em; color: var(--secondary-text-color); margin-top: 4px; line-height: 1.4; }
+
         input[type="text"], input[type="number"] {
-          width: 100%; box-sizing: border-box;
-          padding: 9px 11px;
-          border: 1px solid var(--divider-color, rgba(0,0,0,.25));
-          border-radius: 8px;
+          width: 100%; box-sizing: border-box; padding: 9px 11px;
+          border: 1px solid var(--divider-color, rgba(0,0,0,.2)); border-radius: 8px;
           background: var(--secondary-background-color);
-          color: var(--primary-text-color);
-          font-size: 0.92em; font-family: inherit;
+          color: var(--primary-text-color); font-size: 0.92em; font-family: inherit;
           transition: border-color 0.15s;
         }
         input:focus { outline: none; border-color: var(--primary-color); }
-        .divider { border: none; border-top: 1px solid var(--divider-color, rgba(0,0,0,.1)); margin: 6px 0; }
-        .color-legend {
-          display: flex; gap: 14px; flex-wrap: wrap;
-          padding: 10px 12px; border-radius: 8px;
+
+        .icon-prev { display: flex; align-items: center; gap: 7px; margin-top: 6px; }
+        .icon-prev .pi { font-size: 1.5em; line-height: 1; }
+        .icon-prev .pl { font-size: 0.76em; color: var(--secondary-text-color); }
+
+        .legend {
+          display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px;
+          padding: 9px 12px; border-radius: 8px;
           background: var(--secondary-background-color);
-          margin-top: 8px;
         }
-        .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.82em; color: var(--secondary-text-color); }
-        .swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
-        .sw-red    { background: #f44336; }
-        .sw-yellow { background: #f9a825; }
-        .sw-green  { background: #4caf50; }
-        .icon-preview {
-          display: flex; align-items: center; gap: 8px; margin-top: 6px;
-          font-size: 0.8em; color: var(--secondary-text-color);
-        }
-        .icon-preview span { font-size: 1.4em; line-height: 1; }
+        .li { display: flex; align-items: center; gap: 5px; font-size: 0.8em; color: var(--secondary-text-color); }
+        .sw { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+        .sw-r { background: #f44336; }
+        .sw-y { background: #f9a825; }
+        .sw-g { background: #4caf50; }
       </style>
-      <div class="editor">
 
-        <p class="section">Zastávka</p>
-        <div class="row full">
-          <div class="field">
-            <label>Senzor zastávky</label>
-            <input name="entity" type="text" value="${entity}" placeholder="sensor.mhd_...">
-            <p class="hint">Entita vytvořená doplňkem MHD (sensor.mhd_…)</p>
-          </div>
+      <div class="ew">
+        <div class="ew-title">
+          <span class="ew-title-name">MHD Jízdní řády</span>
+          <span class="ew-version">${MHD_CARD_VERSION}</span>
         </div>
 
-        <hr class="divider">
-        <p class="section">Zobrazení</p>
-        <div class="row">
-          <div class="field">
-            <label>Počet odjezdů</label>
-            <input name="departures_count" type="number" min="1" max="10" value="${count}">
-            <p class="hint">Kolik nejbližších spojů zobrazit (1–10)</p>
+        <details open>
+          <summary>Zastávka</summary>
+          <div class="sb">
+            <div class="row full">
+              <div class="field">
+                <label>Senzor</label>
+                <input name="entity" type="text" value="${entity}" placeholder="sensor.mhd_...">
+                <p class="hint">Entita zastávky vytvořená doplňkem (sensor.mhd_…)</p>
+              </div>
+            </div>
           </div>
-          <div class="field">
-            <label>Ikona v hlavičce</label>
-            <input name="header_icon" type="text" value="${icon}" placeholder="🚌 nebo mdi:bus">
-            <div class="icon-preview"><span>${icon.indexOf("mdi:") === 0 ? "⚙️" : icon}</span> ${icon.indexOf("mdi:") === 0 ? "HA ikona: " + icon : "Emoji"}</div>
-          </div>
-        </div>
+        </details>
 
-        <hr class="divider">
-        <p class="section">Barevné prahové hodnoty</p>
-        <div class="row">
-          <div class="field">
-            <label>🔴 Červená – pod X minut</label>
-            <input name="urgent_minutes" type="number" min="1" max="30" value="${urgent}">
-            <p class="hint">Výchozí: 5 minut</p>
+        <details>
+          <summary>Zobrazení</summary>
+          <div class="sb">
+            <div class="row">
+              <div class="field">
+                <label>Počet odjezdů</label>
+                <input name="departures_count" type="number" min="1" max="10" value="${count}">
+                <p class="hint">Nejbližších spojů (1–10, výchozí 3)</p>
+              </div>
+              <div class="field">
+                <label>Ikona</label>
+                <input name="header_icon" type="text" value="${icon}" placeholder="🚌 nebo mdi:bus">
+                <div class="icon-prev">
+                  ${isMdi
+                    ? `<ha-icon icon="${icon}" style="--mdc-icon-size:1.4em;color:var(--primary-color)"></ha-icon>`
+                    : `<span class="pi">${icon}</span>`}
+                  <span class="pl icon-label">${isMdi ? icon : "emoji ikona"}</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="field">
-            <label>🟡 Žlutá – pod X minut</label>
-            <input name="warning_minutes" type="number" min="1" max="60" value="${warning}">
-            <p class="hint">Výchozí: 10 minut</p>
-          </div>
-        </div>
-        <div class="color-legend">
-          <div class="legend-item"><div class="swatch sw-red"></div> do ${urgent} min</div>
-          <div class="legend-item"><div class="swatch sw-yellow"></div> ${urgent}–${warning} min</div>
-          <div class="legend-item"><div class="swatch sw-green"></div> nad ${warning} min</div>
-        </div>
+        </details>
 
+        <details>
+          <summary>Barvy odjezdů</summary>
+          <div class="sb">
+            <div class="row">
+              <div class="field">
+                <label>🔴 Červená pod</label>
+                <input name="urgent_minutes" type="number" min="1" max="30" value="${urgent}">
+                <p class="hint">minut do odjezdu (výchozí 5)</p>
+              </div>
+              <div class="field">
+                <label>🟡 Žlutá pod</label>
+                <input name="warning_minutes" type="number" min="1" max="60" value="${warning}">
+                <p class="hint">minut do odjezdu (výchozí 10)</p>
+              </div>
+            </div>
+            <div class="legend">
+              <div class="li"><div class="sw sw-r"></div><span class="leg-u">do ${urgent} min</span></div>
+              <div class="li"><div class="sw sw-y"></div><span class="leg-w">${urgent}–${warning} min</span></div>
+              <div class="li"><div class="sw sw-g"></div><span class="leg-o">nad ${warning} min</span></div>
+            </div>
+          </div>
+        </details>
       </div>
     `;
 
-    // Bind all inputs
+    this._bindInputs();
+  }
+
+  _bindInputs() {
     var self = this;
     this.querySelectorAll("input").forEach(function(input) {
       input.addEventListener("change", function(e) {
@@ -342,10 +390,56 @@ class MHDTimetableCardEditor extends HTMLElement {
         self._config = Object.assign({}, self._config);
         self._config[name] = value;
         self._fire();
-        // Re-render to update live legend and icon preview
-        self._render();
+        if (name === "urgent_minutes" || name === "warning_minutes") {
+          self._updateLegend();
+        }
+        if (name === "header_icon") {
+          self._updateIconPreview(value);
+        }
       });
     });
+  }
+
+  _updateLegend() {
+    var urgent = this._config.urgent_minutes || 5;
+    var warning = this._config.warning_minutes || 10;
+    var u = this.querySelector(".leg-u");
+    var w = this.querySelector(".leg-w");
+    var o = this.querySelector(".leg-o");
+    if (u) u.textContent = "do " + urgent + " min";
+    if (w) w.textContent = urgent + "–" + warning + " min";
+    if (o) o.textContent = "nad " + warning + " min";
+  }
+
+  _updateIconPreview(icon) {
+    var isMdi = icon.indexOf("mdi:") === 0 || icon.indexOf("hass:") === 0;
+    var prev = this.querySelector(".icon-prev");
+    if (!prev) return;
+    var label = prev.querySelector(".icon-label");
+    var pi = prev.querySelector(".pi");
+    var haIcon = prev.querySelector("ha-icon");
+    if (isMdi) {
+      if (pi) { pi.style.display = "none"; }
+      if (!haIcon) {
+        var el = document.createElement("ha-icon");
+        el.setAttribute("style", "--mdc-icon-size:1.4em;color:var(--primary-color)");
+        prev.insertBefore(el, prev.firstChild);
+        haIcon = el;
+      }
+      haIcon.setAttribute("icon", icon);
+      haIcon.style.display = "";
+    } else {
+      if (haIcon) haIcon.style.display = "none";
+      if (!pi) {
+        var span = document.createElement("span");
+        span.className = "pi";
+        prev.insertBefore(span, prev.firstChild);
+        pi = span;
+      }
+      pi.textContent = icon;
+      pi.style.display = "";
+    }
+    if (label) label.textContent = isMdi ? icon : "emoji ikona";
   }
 }
 

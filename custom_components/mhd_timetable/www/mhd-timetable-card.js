@@ -1,7 +1,7 @@
 /**
  * MHD Timetable Card – departure display for Home Assistant Lovelace
  */
-var MHD_CARD_VERSION = "0.7.9";
+var MHD_CARD_VERSION = "0.8.0";
 class MHDTimetableCard extends HTMLElement {
   constructor() {
     super();
@@ -222,7 +222,11 @@ class MHDTimetableCard extends HTMLElement {
 class MHDTimetableCardEditor extends HTMLElement {
   setConfig(config) {
     this._config = Object.assign({}, config);
-    this._render();
+    if (!this.querySelector(".ew")) {
+      this._render();
+    } else {
+      this._syncInputs();
+    }
   }
 
   set hass(hass) {
@@ -396,6 +400,26 @@ class MHDTimetableCardEditor extends HTMLElement {
 
     this._bindInputs();
     this._setupEntityPicker(entity);
+  }
+
+  _syncInputs() {
+    var c = this._config;
+    var ep = this.querySelector("#mhd-ep");
+    if (ep) ep.value = c.entity || "";
+    var fields = {
+      header_text:      c.header_text || "",
+      departures_count: c.departures_count !== undefined ? c.departures_count : 3,
+      header_icon:      c.header_icon !== undefined ? c.header_icon : "🚌",
+      urgent_minutes:   c.urgent_minutes !== undefined ? c.urgent_minutes : 5,
+      warning_minutes:  c.warning_minutes !== undefined ? c.warning_minutes : 10,
+    };
+    var self = this;
+    Object.keys(fields).forEach(function(name) {
+      var el = self.querySelector("[name='" + name + "']");
+      if (el) el.value = fields[name];
+    });
+    this._updateLegend();
+    this._updateIconPreview(fields.header_icon);
   }
 
   _setupEntityPicker(entity) {

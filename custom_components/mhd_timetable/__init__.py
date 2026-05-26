@@ -23,7 +23,14 @@ PLATFORMS = ["sensor"]
 _PANEL_URL = "mhd_timetable"
 _STATIC_PATH = "/mhd_timetable_static"
 _PANEL_JS = f"{_STATIC_PATH}/mhd-timetable-panel.js"
-_CARD_JS = f"{_STATIC_PATH}/mhd-timetable-card.js"
+
+def _card_js_url() -> str:
+    try:
+        manifest = pathlib.Path(__file__).parent / "manifest.json"
+        version = json.loads(manifest.read_text())["version"]
+    except Exception:
+        version = "0"
+    return f"{_STATIC_PATH}/mhd-timetable-card.js?v={version}"
 
 
 # ---------------------------------------------------------------------------
@@ -111,7 +118,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     # Register in Lovelace resource storage - must wait until HA is fully started
     # so that the lovelace component is loaded and hass.data["lovelace"] exists
     async def _register(_event=None):
-        await _async_register_lovelace_resource(hass, _CARD_JS)
+        await _async_register_lovelace_resource(hass, _card_js_url())
 
     if hass.is_running:
         # Integration added while HA is already running (UI install)
@@ -124,19 +131,24 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 
 async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> None:
-    """Add card JS to Lovelace resources storage (persistent, works across restarts)."""
+    """Add card JS to Lovelace resources, replacing any previous version of the same file."""
+    base = url.split("?")[0]
     try:
         store = Store(hass, 1, "lovelace_resources")
         data = await store.async_load() or {"items": []}
         items = data.setdefault("items", [])
 
-        if any(item.get("url") == url for item in items):
-            _LOGGER.debug("Lovelace resource already registered: %s", url)
+        # Remove stale entries for this file (different ?v= or bare URL)
+        old = [i for i in items if i.get("url", "").split("?")[0] == base]
+        if len(old) == 1 and old[0].get("url") == url:
+            _LOGGER.debug("Lovelace resource up to date: %s", url)
             return
+        for item in old:
+            items.remove(item)
 
         items.append({"id": str(uuid.uuid4()), "type": "module", "url": url})
         await store.async_save(data)
-        _LOGGER.info("Lovelace resource registered: %s", url)
+        _LOGGER.info("Lovelace resource updated: %s", url)
     except Exception as exc:
         _LOGGER.warning("Could not register Lovelace resource %s: %s", url, exc)
 

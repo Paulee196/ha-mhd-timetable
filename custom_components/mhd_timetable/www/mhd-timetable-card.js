@@ -1,7 +1,7 @@
 /**
  * MHD Timetable Card – departure display for Home Assistant Lovelace
  */
-var MHD_CARD_VERSION = "0.8.0";
+var MHD_CARD_VERSION = "0.8.1";
 class MHDTimetableCard extends HTMLElement {
   constructor() {
     super();
@@ -9,6 +9,7 @@ class MHDTimetableCard extends HTMLElement {
     this._config = null;
     this._hass = null;
     this._popup = null;
+    this._displayDeps = [];
   }
 
   setConfig(config) {
@@ -28,6 +29,11 @@ class MHDTimetableCard extends HTMLElement {
     return (v !== undefined && v !== null && v !== "") ? v : def;
   }
 
+  _typeIcon(type) {
+    var icons = { bus: "🚌", trolleybus: "🚎", tram: "🚋", train: "🚂" };
+    return icons[type] || "🚌";
+  }
+
   _countdownClass(mins) {
     const urgent = this._cfg("urgent_minutes", 5);
     const warning = this._cfg("warning_minutes", 10);
@@ -40,12 +46,44 @@ class MHDTimetableCard extends HTMLElement {
     const state = this._hass.states[this._config.entity];
     const attr = state ? state.attributes : {};
     const count = parseInt(this._cfg("departures_count", 3), 10) || 3;
-    const departures = (attr.next_departures || []).slice(0, count);
-    const stopName = this._cfg("header_text", null) || attr.stop || this._config.entity;
+    const allDeps = (attr.next_departures || []).slice(0, count);
+    const homeStop = attr.stop || this._config.entity;
+    const stopName = this._cfg("header_text", null) || homeStop;
     const rawIcon = this._cfg("header_icon", "🚌");
     const iconHtml = (rawIcon.indexOf("mdi:") === 0 || rawIcon.indexOf("hass:") === 0)
       ? `<ha-icon icon="${rawIcon}" class="header-ha-icon"></ha-icon>`
       : `<span class="header-icon">${rawIcon}</span>`;
+
+    // Split into home-stop departures and other-stop groups
+    var homeDeps = allDeps.filter(function(d) { return !d.stop || d.stop === homeStop; });
+    var otherDeps = allDeps.filter(function(d) { return d.stop && d.stop !== homeStop; });
+
+    var otherGroups = {};
+    otherDeps.forEach(function(d) {
+      if (!otherGroups[d.stop]) otherGroups[d.stop] = [];
+      otherGroups[d.stop].push(d);
+    });
+
+    // Build ordered list for popup lookup
+    this._displayDeps = homeDeps.slice();
+    Object.keys(otherGroups).forEach(function(s) {
+      otherGroups[s].forEach(function(d) { this._displayDeps.push(d); }.bind(this));
+    }.bind(this));
+
+    // Build departures HTML
+    var depsHtml = "";
+    if (allDeps.length === 0) {
+      depsHtml = `<div class="empty">Žádné nadcházející spoje</div>`;
+    } else {
+      var idx = 0;
+      var self = this;
+      homeDeps.forEach(function(d) { depsHtml += self._depHTML(d, idx++); });
+      Object.keys(otherGroups).forEach(function(stop) {
+        var icon = self._typeIcon(otherGroups[stop][0].transport_type);
+        depsHtml += `<div class="other-stop-sep"><span>${icon} ${stop}</span></div>`;
+        otherGroups[stop].forEach(function(d) { depsHtml += self._depHTML(d, idx++); });
+      });
+    }
 
     this.shadowRoot.innerHTML = `
       <style>${this._styles()}</style>
@@ -55,9 +93,7 @@ class MHDTimetableCard extends HTMLElement {
           <span class="stop-name">${stopName}</span>
         </div>
         <div class="departures">
-          ${departures.length === 0
-            ? `<div class="empty">Žádné nadcházející spoje</div>`
-            : departures.map((d, i) => this._depHTML(d, i)).join("")}
+          ${depsHtml}
         </div>
       </ha-card>
       ${this._popup ? this._popupHTML(this._popup) : ""}
@@ -71,9 +107,10 @@ class MHDTimetableCard extends HTMLElement {
     const mins = dep.minutes_until;
     const countdownText = mins === 0 ? "Teď!" : `za ${mins} min`;
     const colorClass = this._countdownClass(mins);
+    const icon = this._typeIcon(dep.transport_type);
     return `
       <div class="departure" data-idx="${idx}">
-        <span class="dep-text">Linka ${dep.line} - Směr ${dep.direction} v ${dep.time}</span>
+        <span class="dep-text"><span class="dep-type-icon">${icon}</span> Linka ${dep.line} - Směr ${dep.direction} v ${dep.time}</span>
         <span class="dep-countdown ${colorClass}">(${countdownText})</span>
       </div>`;
   }
@@ -105,10 +142,8 @@ class MHDTimetableCard extends HTMLElement {
     this.shadowRoot.querySelectorAll(".departure").forEach(function(el) {
       el.addEventListener("click", function(e) {
         e.stopPropagation();
-        var state = this._hass.states[this._config.entity];
-        var deps = (state && state.attributes && state.attributes.next_departures) || [];
         var idx = parseInt(el.dataset.idx, 10);
-        this._popup = deps[idx] || null;
+        this._popup = (this._displayDeps || [])[idx] || null;
         this._render();
       }.bind(this));
     }.bind(this));
@@ -151,8 +186,26 @@ class MHDTimetableCard extends HTMLElement {
       .departure:last-child { border-bottom: none; }
       .departure:hover { background: rgba(0,0,0,.06); }
 
+      .dep-type-icon { font-size: 0.95em; }
       .dep-text { font-size: 1.05em; font-weight: 600; color: var(--primary-text-color); margin-right: 4px; }
       .dep-countdown { display: block; font-size: 0.95em; font-weight: 600; }
+
+      .other-stop-sep {
+        padding: 6px 16px 4px;
+        display: flex; align-items: center; gap: 8px;
+      }
+      .other-stop-sep span {
+        font-size: 0.8em; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.05em; color: var(--secondary-text-color);
+      }
+      .other-stop-sep::before {
+        content: ""; flex: 1; height: 1px;
+        background: var(--divider-color, rgba(255,255,255,.12));
+      }
+      .other-stop-sep::after {
+        content: ""; flex: 1; height: 1px;
+        background: var(--divider-color, rgba(255,255,255,.12));
+      }
       .cnt-red    { color: var(--error-color, #f44336); }
       .cnt-yellow { color: #f9a825; }
       .cnt-green  { color: #4caf50; }

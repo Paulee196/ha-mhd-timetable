@@ -11,6 +11,13 @@ const SCHEDULE_LABELS = {
 };
 const BASE_TYPES = Object.keys(SCHEDULE_LABELS);
 
+const TRANSPORT_TYPES = [
+  { key: "bus",        label: "Autobus",   icon: "🚌", color: "#1976d2" },
+  { key: "trolleybus", label: "Trolejbus", icon: "🚎", color: "#0097a7" },
+  { key: "tram",       label: "Tramvaj",   icon: "🚋", color: "#f57c00" },
+  { key: "train",      label: "Vlak",      icon: "🚂", color: "#388e3c" },
+];
+
 class MHDTimetablePanel extends HTMLElement {
   constructor() {
     super();
@@ -386,12 +393,25 @@ class MHDTimetablePanel extends HTMLElement {
 
     const currentTabLabel = allTabs.find(t => t.key === tab)?.label || tab;
 
+    const ttype = ld.transport_type || "bus";
+    const customStop = ld.custom_stop || "";
+
     return `
       <div class="le-header">
         <button class="back-btn">← Zpět</button>
         <h2>${isNew ? "Nová linka" : `Linka ${this._editorLine}`}</h2>
       </div>
       <div class="le-fields">
+        <div class="field">
+          <label>Typ dopravy</label>
+          <div class="ttype-chips">
+            ${TRANSPORT_TYPES.map(t => `
+              <button class="ttype-chip ${t.key === ttype ? "active" : ""}" data-type="${t.key}"
+                      style="--tc:${t.color}">
+                ${t.icon} ${t.label}
+              </button>`).join("")}
+          </div>
+        </div>
         <div class="field">
           <label>Číslo linky</label>
           <input id="le-num" value="${isNew ? this._newLineNum : this._editorLine}" ${isNew ? "" : "readonly"}>
@@ -403,6 +423,15 @@ class MHDTimetablePanel extends HTMLElement {
         <div class="field">
           <label>Trasa (zastávky oddělené čárkou)</label>
           <textarea id="le-route" rows="2">${ld.route || ""}</textarea>
+        </div>
+        <div class="field">
+          <label class="type-chip ${customStop ? "on" : ""}" id="le-cs-label">
+            <input type="checkbox" id="le-cs-cb" ${customStop ? "checked" : ""}>
+            Jede z jiné zastávky
+          </label>
+          <input id="le-cs-inp" type="text" value="${customStop}"
+                 placeholder="Název zastávky (např. Hlavní nádraží)"
+                 style="${customStop ? "" : "display:none"}; margin-top:6px">
         </div>
         <div class="field">
           <label>Aktivní rozvrhy</label>
@@ -673,6 +702,24 @@ class MHDTimetablePanel extends HTMLElement {
       this._render();
     });
 
+    // Transport type chips
+    root.querySelectorAll(".ttype-chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        this._syncFields();
+        this._getLineData().transport_type = chip.dataset.type;
+        this._render();
+      });
+    });
+
+    // Custom stop checkbox
+    root.querySelector("#le-cs-cb")?.addEventListener("change", e => {
+      const inp   = root.querySelector("#le-cs-inp");
+      const label = root.querySelector("#le-cs-label");
+      if (inp)   inp.style.display   = e.target.checked ? "" : "none";
+      if (label) label.classList.toggle("on", e.target.checked);
+      if (!e.target.checked) this._getLineData().custom_stop = "";
+    });
+
     root.querySelectorAll(".stab").forEach(btn => {
       btn.addEventListener("click", () => {
         this._syncFields();
@@ -741,23 +788,34 @@ class MHDTimetablePanel extends HTMLElement {
     const num   = root.querySelector("#le-num");
     const dir   = root.querySelector("#le-dir");
     const route = root.querySelector("#le-route");
+    const csCb  = root.querySelector("#le-cs-cb");
+    const csInp = root.querySelector("#le-cs-inp");
     if (num && this._editorLine === "__new__") this._newLineNum = num.value;
     if (dir)   ld.direction = dir.value;
     if (route) ld.route = route.value;
+    if (csCb && csInp) ld.custom_stop = csCb.checked ? csInp.value.trim() : "";
   }
 
   _getLineData() {
     if (this._editorLine === "__new__") {
       if (!this._data._newLine) this._data._newLine = {
+        transport_type: "bus", custom_stop: "",
         direction: "", route: "", valid_from: new Date().toISOString().slice(0, 10),
         schedule_types: ["workday", "saturday", "sunday"],
         workday: {}, saturday: {}, sunday: {}, holiday: {},
       };
       return this._data._newLine;
     }
-    if (!this._data.lines[this._editorLine]) this._data.lines[this._editorLine] = {
-      direction: "", route: "", schedule_types: ["workday"], workday: {},
-    };
+    const ld = this._data.lines[this._editorLine];
+    if (!ld) {
+      this._data.lines[this._editorLine] = {
+        transport_type: "bus", custom_stop: "",
+        direction: "", route: "", schedule_types: ["workday"], workday: {},
+      };
+    } else {
+      if (!ld.transport_type) ld.transport_type = "bus";
+      if (ld.custom_stop === undefined) ld.custom_stop = "";
+    }
     return this._data.lines[this._editorLine];
   }
 
@@ -1052,6 +1110,20 @@ class MHDTimetablePanel extends HTMLElement {
         border-color: var(--primary-color);
       }
       .type-chip input { display: none; }
+
+      .ttype-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+      .ttype-chip {
+        display: flex; align-items: center; gap: 6px;
+        padding: 6px 14px; border-radius: 20px; cursor: pointer;
+        border: 2px solid var(--tc, #999);
+        background: transparent; color: var(--tc, #999);
+        font-size: 0.9em; font-weight: 600; transition: all 0.2s;
+      }
+      .ttype-chip.active {
+        background: var(--tc, #999);
+        color: #fff;
+      }
+      .ttype-chip:hover:not(.active) { opacity: 0.75; }
 
       .sched-tabs {
         display: flex; flex-wrap: wrap; gap: 6px;

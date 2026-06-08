@@ -130,11 +130,16 @@ def _compute_next_departures(data: dict, now: datetime, country: str = "CZ") -> 
     next_buses: list[dict] = []
     routes: list[dict] = []
 
+    home_stop = data.get("stop", "")
+
     for line_num, line_data in data.get("lines", {}).items():
         direction = line_data.get("direction", "")
         route = line_data.get("route", "")
+        transport_type = line_data.get("transport_type", "bus")
+        custom_stop = line_data.get("custom_stop", "").strip()
+        stop_name = custom_stop if custom_stop else home_stop
 
-        routes.append({"line": line_num, "direction": direction, "route": route})
+        routes.append({"line": line_num, "direction": direction, "route": route, "transport_type": transport_type})
 
         effective = schedule_type
         if effective not in line_data or not line_data.get(effective):
@@ -157,6 +162,8 @@ def _compute_next_departures(data: dict, now: datetime, country: str = "CZ") -> 
                         "time": dt.strftime("%H:%M"),
                         "direction": direction,
                         "route": route,
+                        "transport_type": transport_type,
+                        "stop": stop_name,
                     }
                 )
 

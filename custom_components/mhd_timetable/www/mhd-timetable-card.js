@@ -1,7 +1,7 @@
 /**
  * MHD Timetable Card – departure display for Home Assistant Lovelace
  */
-var MHD_CARD_VERSION = "0.8.1";
+var MHD_CARD_VERSION = "0.8.2";
 class MHDTimetableCard extends HTMLElement {
   constructor() {
     super();
@@ -34,9 +34,13 @@ class MHDTimetableCard extends HTMLElement {
     return icons[type] || "🚌";
   }
 
-  _countdownClass(mins) {
-    const urgent = this._cfg("urgent_minutes", 5);
-    const warning = this._cfg("warning_minutes", 10);
+  _countdownClass(mins, stop) {
+    var homeStop = this._hass && this._hass.states[this._config.entity]
+      ? (this._hass.states[this._config.entity].attributes || {}).stop : "";
+    var isOther = stop && homeStop && stop !== homeStop;
+    var thresholds = isOther ? ((this._config.stop_thresholds || {})[stop] || {}) : {};
+    var urgent  = isOther ? (thresholds.urgent_minutes  || this._cfg("urgent_minutes", 5))  : this._cfg("urgent_minutes", 5);
+    var warning = isOther ? (thresholds.warning_minutes || this._cfg("warning_minutes", 10)) : this._cfg("warning_minutes", 10);
     return mins <= urgent ? "cnt-red" : mins <= warning ? "cnt-yellow" : "cnt-green";
   }
 
@@ -106,7 +110,7 @@ class MHDTimetableCard extends HTMLElement {
   _depHTML(dep, idx) {
     const mins = dep.minutes_until;
     const countdownText = mins === 0 ? "Teď!" : `za ${mins} min`;
-    const colorClass = this._countdownClass(mins);
+    const colorClass = this._countdownClass(mins, dep.stop);
     const icon = this._typeIcon(dep.transport_type);
     return `
       <div class="departure" data-idx="${idx}">
@@ -118,7 +122,7 @@ class MHDTimetableCard extends HTMLElement {
   _popupHTML(dep) {
     const stops = dep.route ? dep.route.split(",").map(function(s) { return s.trim(); }).filter(Boolean) : [];
     const mins = dep.minutes_until;
-    const colorClass = this._countdownClass(mins);
+    const colorClass = this._countdownClass(mins, dep.stop);
     return `
       <div class="popup-backdrop"></div>
       <div class="popup" role="dialog" aria-modal="true">
@@ -305,6 +309,19 @@ class MHDTimetableCardEditor extends HTMLElement {
     var warning    = c.warning_minutes !== undefined ? c.warning_minutes : 10;
     var isMdi      = icon.indexOf("mdi:") === 0 || icon.indexOf("hass:") === 0;
 
+    // Discover other stops from sensor routes
+    var sensorAttr = (this._hass && entity && this._hass.states[entity])
+      ? (this._hass.states[entity].attributes || {}) : {};
+    var homeStop = sensorAttr.stop || "";
+    var routes = sensorAttr.routes || [];
+    var otherStopsSet = {};
+    routes.forEach(function(r) {
+      if (r.stop && r.stop !== homeStop) otherStopsSet[r.stop] = r.transport_type || "bus";
+    });
+    var otherStops = Object.keys(otherStopsSet);
+    var stopThresholds = c.stop_thresholds || {};
+    var typeIcons = { bus: "🚌", trolleybus: "🚎", tram: "🚋", train: "🚂" };
+
     this.innerHTML = `
       <style>
         .ew { border: 1px solid var(--divider-color, rgba(0,0,0,.15)); border-radius: 12px; overflow: hidden; }
@@ -375,6 +392,16 @@ class MHDTimetableCardEditor extends HTMLElement {
         .sw-r { background: #f44336; }
         .sw-y { background: #f9a825; }
         .sw-g { background: #4caf50; }
+
+        .sth-label {
+          font-size: 0.8em; font-weight: 700; text-transform: uppercase;
+          letter-spacing: 0.05em; color: var(--secondary-text-color);
+          margin: 10px 0 4px;
+        }
+        .sth-divider {
+          height: 1px; background: var(--divider-color, rgba(0,0,0,.1));
+          margin: 12px 0 8px;
+        }
       </style>
 
       <div class="ew">
@@ -429,23 +456,50 @@ class MHDTimetableCardEditor extends HTMLElement {
         <details>
           <summary>Barvy odjezdů</summary>
           <div class="sb">
+            ${otherStops.length > 0 ? `<p class="sth-label">🏠 ${homeStop || "Domovská zastávka"}</p>` : ""}
             <div class="row">
               <div class="field">
                 <label>🔴 Červená pod</label>
-                <input name="urgent_minutes" type="number" min="1" max="30" value="${urgent}">
-                <p class="hint">minut do odjezdu (výchozí 5)</p>
+                <input name="urgent_minutes" type="number" min="1" max="60" value="${urgent}">
+                <p class="hint">minut (výchozí 5)</p>
               </div>
               <div class="field">
                 <label>🟡 Žlutá pod</label>
-                <input name="warning_minutes" type="number" min="1" max="60" value="${warning}">
-                <p class="hint">minut do odjezdu (výchozí 10)</p>
+                <input name="warning_minutes" type="number" min="1" max="120" value="${warning}">
+                <p class="hint">minut (výchozí 10)</p>
               </div>
             </div>
-            <div class="legend">
+            <div class="legend" data-legend="">
               <div class="li"><div class="sw sw-r"></div><span class="leg-u">do ${urgent} min</span></div>
               <div class="li"><div class="sw sw-y"></div><span class="leg-w">${urgent}–${warning} min</span></div>
               <div class="li"><div class="sw sw-g"></div><span class="leg-o">nad ${warning} min</span></div>
             </div>
+            ${otherStops.map(function(stop) {
+              var st = stopThresholds[stop] || {};
+              var su = st.urgent_minutes !== undefined ? st.urgent_minutes : urgent;
+              var sw = st.warning_minutes !== undefined ? st.warning_minutes : warning;
+              var ticon = typeIcons[otherStopsSet[stop]] || "🚌";
+              var sid = stop.replace(/[^a-z0-9]/gi, "_");
+              return `
+            <div class="sth-divider"></div>
+            <p class="sth-label">${ticon} ${stop}</p>
+            <div class="row">
+              <div class="field">
+                <label>🔴 Červená pod</label>
+                <input name="urgent_minutes" type="number" min="1" max="120" value="${su}" data-stop="${stop}">
+                <p class="hint">minut (prázdné = jako domovská)</p>
+              </div>
+              <div class="field">
+                <label>🟡 Žlutá pod</label>
+                <input name="warning_minutes" type="number" min="1" max="240" value="${sw}" data-stop="${stop}">
+              </div>
+            </div>
+            <div class="legend" data-legend="${stop}">
+              <div class="li"><div class="sw sw-r"></div><span class="leg-u">do ${su} min</span></div>
+              <div class="li"><div class="sw sw-y"></div><span class="leg-w">${su}–${sw} min</span></div>
+              <div class="li"><div class="sw sw-g"></div><span class="leg-o">nad ${sw} min</span></div>
+            </div>`;
+            }).join("")}
           </div>
         </details>
       </div>
@@ -459,6 +513,7 @@ class MHDTimetableCardEditor extends HTMLElement {
     var c = this._config;
     var ep = this.querySelector("#mhd-ep");
     if (ep) ep.value = c.entity || "";
+    // Sync home-stop fields (no data-stop attribute)
     var fields = {
       header_text:      c.header_text || "",
       departures_count: c.departures_count !== undefined ? c.departures_count : 3,
@@ -468,10 +523,23 @@ class MHDTimetableCardEditor extends HTMLElement {
     };
     var self = this;
     Object.keys(fields).forEach(function(name) {
-      var el = self.querySelector("[name='" + name + "']");
+      var el = self.querySelector("[name='" + name + "']:not([data-stop])");
       if (el) el.value = fields[name];
     });
-    this._updateLegend();
+    // Sync per-stop fields
+    var stopThresholds = c.stop_thresholds || {};
+    this.querySelectorAll("[data-stop]").forEach(function(inp) {
+      var stop = inp.dataset.stop;
+      var st = stopThresholds[stop] || {};
+      if (inp.name === "urgent_minutes")  inp.value = st.urgent_minutes  !== undefined ? st.urgent_minutes  : fields.urgent_minutes;
+      if (inp.name === "warning_minutes") inp.value = st.warning_minutes !== undefined ? st.warning_minutes : fields.warning_minutes;
+    });
+    this._updateLegend("");
+    // Update all per-stop legends
+    this.querySelectorAll("[data-legend]").forEach(function(leg) {
+      var stop = leg.dataset.legend;
+      if (stop) self._updateLegend(stop);
+    });
     this._updateIconPreview(fields.header_icon);
   }
 
@@ -494,30 +562,50 @@ class MHDTimetableCardEditor extends HTMLElement {
     this.querySelectorAll("input").forEach(function(input) {
       input.addEventListener("change", function(e) {
         var name = e.target.name;
+        var stopName = e.target.dataset.stop || "";
         var value = e.target.value;
         if (e.target.type === "number") {
           value = parseInt(value, 10);
           if (isNaN(value) || value < 1) value = 1;
         }
         self._config = Object.assign({}, self._config);
-        self._config[name] = value;
-        self._fire();
-        if (name === "urgent_minutes" || name === "warning_minutes") {
-          self._updateLegend();
-        }
-        if (name === "header_icon") {
-          self._updateIconPreview(value);
+        if (stopName && (name === "urgent_minutes" || name === "warning_minutes")) {
+          var st = Object.assign({}, (self._config.stop_thresholds || {}));
+          st[stopName] = Object.assign({}, st[stopName] || {});
+          st[stopName][name] = value;
+          self._config.stop_thresholds = st;
+          self._fire();
+          self._updateLegend(stopName);
+        } else {
+          self._config[name] = value;
+          self._fire();
+          if (name === "urgent_minutes" || name === "warning_minutes") {
+            self._updateLegend("");
+          }
+          if (name === "header_icon") {
+            self._updateIconPreview(value);
+          }
         }
       });
     });
   }
 
-  _updateLegend() {
-    var urgent = this._config.urgent_minutes || 5;
-    var warning = this._config.warning_minutes || 10;
-    var u = this.querySelector(".leg-u");
-    var w = this.querySelector(".leg-w");
-    var o = this.querySelector(".leg-o");
+  _updateLegend(stopName) {
+    stopName = stopName === undefined ? "" : stopName;
+    var urgent, warning;
+    if (stopName) {
+      var st = (this._config.stop_thresholds || {})[stopName] || {};
+      urgent  = st.urgent_minutes  !== undefined ? st.urgent_minutes  : (this._config.urgent_minutes  || 5);
+      warning = st.warning_minutes !== undefined ? st.warning_minutes : (this._config.warning_minutes || 10);
+    } else {
+      urgent  = this._config.urgent_minutes  || 5;
+      warning = this._config.warning_minutes || 10;
+    }
+    var legend = this.querySelector('[data-legend="' + stopName + '"]');
+    if (!legend) return;
+    var u = legend.querySelector(".leg-u");
+    var w = legend.querySelector(".leg-w");
+    var o = legend.querySelector(".leg-o");
     if (u) u.textContent = "do " + urgent + " min";
     if (w) w.textContent = urgent + "–" + warning + " min";
     if (o) o.textContent = "nad " + warning + " min";

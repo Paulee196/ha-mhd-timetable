@@ -21,15 +21,19 @@ PLATFORMS = ["sensor"]
 
 _PANEL_URL = "mhd_timetable"
 _STATIC_PATH = "/mhd_timetable_static"
-_PANEL_JS = f"{_STATIC_PATH}/mhd-timetable-panel.js"
 
-def _card_js_url() -> str:
+def _get_version() -> str:
     try:
         manifest = pathlib.Path(__file__).parent / "manifest.json"
-        version = json.loads(manifest.read_text())["version"]
+        return json.loads(manifest.read_text())["version"]
     except Exception:
-        version = "0"
-    return f"{_STATIC_PATH}/mhd-timetable-card.js?v={version}"
+        return "0"
+
+def _card_js_url() -> str:
+    return f"{_STATIC_PATH}/mhd-timetable-card.js?v={_get_version()}"
+
+def _panel_js_url() -> str:
+    return f"{_STATIC_PATH}/mhd-timetable-panel.js?v={_get_version()}"
 
 
 # ---------------------------------------------------------------------------
@@ -180,7 +184,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 sidebar_title="Jízdní řády",
                 sidebar_icon="mdi:bus-clock",
                 frontend_url_path=_PANEL_URL,
-                module_url=_PANEL_JS,
+                module_url=_panel_js_url(),
                 require_admin=False,
                 config={},
             )

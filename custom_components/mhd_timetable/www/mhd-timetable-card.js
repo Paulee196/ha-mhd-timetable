@@ -1,7 +1,7 @@
 /**
  * MHD Timetable Card – departure display for Home Assistant Lovelace
  */
-var MHD_CARD_VERSION = "0.8.3";
+var MHD_CARD_VERSION = "0.8.4";
 class MHDTimetableCard extends HTMLElement {
   constructor() {
     super();

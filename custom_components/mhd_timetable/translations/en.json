@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Add MHD Bus Stop",
+        "title": "Add Transit Stop",
         "data": {
           "stop_name": "Stop name",
           "output_path": "JSON output file path"

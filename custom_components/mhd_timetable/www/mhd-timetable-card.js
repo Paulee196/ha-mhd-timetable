@@ -1,7 +1,7 @@
 /**
  * MHD Timetable Card – departure display for Home Assistant Lovelace
  */
-var MHD_CARD_VERSION = "0.8.2";
+var MHD_CARD_VERSION = "0.8.3";
 class MHDTimetableCard extends HTMLElement {
   constructor() {
     super();
@@ -406,7 +406,7 @@ class MHDTimetableCardEditor extends HTMLElement {
 
       <div class="ew">
         <div class="ew-title">
-          <span class="ew-title-name">MHD Jízdní řády</span>
+          <span class="ew-title-name">Jízdní řády</span>
           <span class="ew-version">${MHD_CARD_VERSION}</span>
         </div>
 
@@ -653,7 +653,7 @@ if (!customElements.get("mhd-timetable-card-editor")) {
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "mhd-timetable-card",
-  name: "MHD Jízdní řády",
+  name: "Jízdní řády",
   description: "Zobrazí příští odjezdy z vybrané zastávky.",
   preview: true,
   documentationURL: "https://github.com/smarthome4u/ha-mhd-timetable",

@@ -1,4 +1,4 @@
-"""MHD Jízdní řády – Home Assistant custom integration."""
+"""Jízdní řády – Home Assistant custom integration."""
 from __future__ import annotations
 
 import json
@@ -177,7 +177,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await async_register_panel(
                 hass,
                 webcomponent_name="mhd-timetable-panel",
-                sidebar_title="MHD Jízdní řády",
+                sidebar_title="Jízdní řády",
                 sidebar_icon="mdi:bus-clock",
                 frontend_url_path=_PANEL_URL,
                 module_url=_PANEL_JS,
@@ -203,11 +203,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         from homeassistant.components.persistent_notification import async_create as pn_create
         pn_create(
             hass,
-            title="MHD Jízdní řády – zastávka přidána",
+            title="Jízdní řády – zastávka přidána",
             message=(
                 f"Zastávka **{entry.data['stop_name']}** byla úspěšně nakonfigurována.\n\n"
                 "**Jak přidat spoje:**\n"
-                "Klikněte na ikonu 🚌 **MHD Jízdní řády** v levém postranním panelu.\n\n"
+                "Klikněte na ikonu 🚌 **Jízdní řády** v levém postranním panelu.\n\n"
                 "Nebo přidejte kartu do dashboardu:\n"
                 "```yaml\n"
                 "type: custom:mhd-timetable-card\n"

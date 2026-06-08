@@ -141,17 +141,17 @@ class MHDTimetablePanel extends HTMLElement {
     if (this._loading) return `<div class="page"><div class="loading">Načítání…</div></div>`;
     if (this._entries.length === 0) return `
       <div class="page">
-        <div class="toolbar"><h1>MHD Jízdní řády</h1></div>
+        <div class="toolbar"><h1>Jízdní řády</h1></div>
         <div class="empty">
           <p>Žádné zastávky nejsou nakonfigurovány.</p>
-          <p>Přidejte zastávku v <strong>Nastavení → Integrace → MHD Jízdní řády</strong>.</p>
+          <p>Přidejte zastávku v <strong>Nastavení → Integrace → Jízdní řády</strong>.</p>
         </div>
       </div>`;
 
     return `
       <div class="page">
         <div class="toolbar">
-          <h1>MHD Jízdní řády</h1>
+          <h1>Jízdní řády</h1>
           ${this._entries.length > 1 ? `
             <select class="stop-select">
               ${this._entries.map(e => `

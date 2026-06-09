@@ -180,12 +180,13 @@ class MHDTimetablePanel extends HTMLElement {
       <div class="le-fields">
         <div class="field">
           <label>Typ dopravy</label>
-          <select id="le-type">
-            <option value="bus" ${tt === "bus" ? "selected" : ""}>🚌 Bus</option>
-            <option value="tramvaj" ${tt === "tramvaj" ? "selected" : ""}>🚋 Tramvaj</option>
-            <option value="trolejbus" ${tt === "trolejbus" ? "selected" : ""}>🚎 Trolejbus</option>
-            <option value="vlak" ${tt === "vlak" ? "selected" : ""}>🚆 Vlak</option>
-          </select>
+          <div class="type-checks">
+            ${[["bus","🚌 Bus"],["tramvaj","🚋 Tramvaj"],["trolejbus","🚎 Trolejbus"],["vlak","🚆 Vlak"]].map(([v,l]) => `
+              <label class="type-chip ${tt===v ? "on" : ""}">
+                <input type="radio" name="le-type" value="${v}" ${tt===v ? "checked" : ""}>
+                ${l}
+              </label>`).join("")}
+          </div>
         </div>
         <div class="field">
           <label>Číslo linky${isVlak ? " (u vlaku nepovinné)" : ""}</label>
@@ -339,6 +340,13 @@ class MHDTimetablePanel extends HTMLElement {
       });
     });
 
+    root.querySelectorAll('input[name="le-type"]').forEach(radio => {
+      radio.addEventListener("change", () => {
+        this._syncFields();
+        this._render();
+      });
+    });
+
     root.querySelectorAll(".type-cb").forEach(cb => {
       cb.addEventListener("change", () => {
         this._syncFields();
@@ -401,7 +409,7 @@ class MHDTimetablePanel extends HTMLElement {
     const ld = this._getLineData();
     const dir = root.querySelector("#le-dir");
     const route = root.querySelector("#le-route");
-    const typeEl = root.querySelector("#le-type");
+    const typeEl = root.querySelector('input[name="le-type"]:checked');
     if (dir) ld.direction = dir.value;
     if (route) ld.route = route.value;
     if (typeEl) ld.transport_type = typeEl.value;

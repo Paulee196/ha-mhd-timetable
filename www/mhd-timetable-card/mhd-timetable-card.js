@@ -266,32 +266,17 @@ class MHDTimetableCard extends HTMLElement {
     const lineData = isNew ? this._newLineTemplate() : (this._editorData.lines[this._editorLine] || {});
     const schedTypes = lineData.schedule_types || ["workday", "saturday", "sunday"];
     const tab = this._editorTab;
-    const tt = lineData.transport_type || "bus";
-    const isVlak = tt === "vlak";
-    const typeLabels = {bus: "Bus", tramvaj: "Tramvaj", trolejbus: "Trolejbus", vlak: "Vlak"};
-    const headerTitle = isNew ? "Nová linka"
-      : isVlak ? `Vlak${lineData.direction ? " → " + lineData.direction : ""}`
-      : `${typeLabels[tt] || "Linka"} ${this._editorLine}`;
 
     return `
       <div class="editor-header">
         <button class="back-btn">← Zpět</button>
-        <span>${headerTitle}</span>
+        <span>${isNew ? "Nová linka" : `Linka ${this._editorLine}`}</span>
         <button class="editor-close">✕</button>
       </div>
       <div class="editor-body line-editor-body">
         <div class="field-row">
-          <label>Typ dopravy</label>
-          <select id="le-type">
-            <option value="bus" ${tt === "bus" ? "selected" : ""}>🚌 Bus</option>
-            <option value="tramvaj" ${tt === "tramvaj" ? "selected" : ""}>🚋 Tramvaj</option>
-            <option value="trolejbus" ${tt === "trolejbus" ? "selected" : ""}>🚎 Trolejbus</option>
-            <option value="vlak" ${tt === "vlak" ? "selected" : ""}>🚆 Vlak</option>
-          </select>
-        </div>
-        <div class="field-row">
-          <label>Číslo linky${isVlak ? " (u vlaku nepovinné)" : ""}</label>
-          <input id="le-num" value="${isNew ? "" : this._editorLine}" ${isNew ? `placeholder="${isVlak ? "Nevyplňovat u vlaků" : ""}"` : 'readonly style="opacity:0.6"'}>
+          <label>Číslo linky</label>
+          <input id="le-num" value="${isNew ? "" : this._editorLine}" ${isNew ? "" : 'readonly style="opacity:0.6"'}>
         </div>
         <div class="field-row">
           <label>Směr (cílová zastávka)</label>
@@ -546,10 +531,8 @@ class MHDTimetableCard extends HTMLElement {
     const ld = this._getEditingLineData();
     const dir = root.querySelector("#le-dir");
     const route = root.querySelector("#le-route");
-    const typeEl = root.querySelector("#le-type");
     if (dir) ld.direction = dir.value;
     if (route) ld.route = route.value;
-    if (typeEl) ld.transport_type = typeEl.value;
   }
 
   _getEditingLineData() {

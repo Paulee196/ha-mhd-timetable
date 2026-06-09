@@ -34,6 +34,11 @@ class MHDTimetableCard extends HTMLElement {
     return icons[type] || "🚌";
   }
 
+  _stopIcon(type) {
+    var icons = { train: "🚉", vlak: "🚉", tram: "🚊", tramvaj: "🚊", trolleybus: "🚏", trolejbus: "🚏", bus: "🚏" };
+    return icons[type] || "🚏";
+  }
+
   _countdownClass(mins, stop) {
     var homeStop = this._hass && this._hass.states[this._config.entity]
       ? (this._hass.states[this._config.entity].attributes || {}).stop : "";
@@ -79,8 +84,8 @@ class MHDTimetableCard extends HTMLElement {
       var self = this;
       homeDeps.forEach(function(d) { depsHtml += self._depHTML(d, idx++); });
       Object.keys(otherGroups).forEach(function(stop) {
-        var icon = self._typeIcon(otherGroups[stop][0].transport_type);
-        depsHtml += `<div class="other-stop-sep"><span>${icon} ${stop}</span></div>`;
+        var stopIco = self._stopIcon(otherGroups[stop][0].transport_type);
+        depsHtml += `<div class="other-stop-sep"><span>${stopIco} ${stop}</span></div>`;
         otherGroups[stop].forEach(function(d) { depsHtml += self._depHTML(d, idx++); });
       });
     }
@@ -89,6 +94,7 @@ class MHDTimetableCard extends HTMLElement {
       <style>${this._styles()}</style>
       <ha-card>
         <div class="card-header">
+          <span class="header-home-icon">🏠</span>
           <span class="stop-name">${stopName}</span>
         </div>
         <div class="departures">
@@ -170,7 +176,8 @@ class MHDTimetableCard extends HTMLElement {
         padding: 14px 16px 12px;
         border-bottom: 1px solid var(--divider-color, rgba(255,255,255,.1));
       }
-.stop-name { font-size: 1.05em; font-weight: 600; color: var(--primary-text-color); }
+      .header-home-icon { font-size: 1.1em; line-height: 1; }
+      .stop-name { font-size: 1.05em; font-weight: 600; color: var(--primary-text-color); }
 
       .departures { padding: 4px 0 8px; }
       .empty { padding: 16px; text-align: center; color: var(--secondary-text-color); font-size: 0.95em; }

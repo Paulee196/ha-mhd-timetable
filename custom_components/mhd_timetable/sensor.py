@@ -72,8 +72,9 @@ class MHDNextDeparturesSensor(SensorEntity):
             self._attr_native_value = "Žádné spoje"
         else:
             first = departures[0]
+            line_prefix = "Vlak" if first.get("transport_type") == "vlak" else f"Linka {first['line']}"
             self._attr_native_value = (
-                f"Linka {first['line']} - Směr {first['direction']} "
+                f"{line_prefix} - Směr {first['direction']} "
                 f"v {first['time']} (za {first['minutes_until']} min)"
             )
 
@@ -88,7 +89,7 @@ class MHDNextDeparturesSensor(SensorEntity):
             "time": departures[0]["time"] if departures else "",
             "direction": departures[0]["direction"] if departures else "",
             "next_list": ", ".join(
-                f"{d['line']} - Směr {d['direction']} {d['time']} ({d['minutes_until']} min)"
+                f"{'Vlak' if d.get('transport_type')=='vlak' else d['line']} - Směr {d['direction']} {d['time']} ({d['minutes_until']} min)"
                 for d in departures[1:3]
             ),
         }
@@ -138,8 +139,9 @@ def _compute_next_departures(data: dict, now: datetime, country: str = "CZ") -> 
         transport_type = line_data.get("transport_type", "bus")
         custom_stop = line_data.get("custom_stop", "").strip()
         stop_name = custom_stop if custom_stop else home_stop
+        line_display = "Vlak" if transport_type == "vlak" else line_num
 
-        routes.append({"line": line_num, "direction": direction, "route": route, "transport_type": transport_type, "stop": stop_name})
+        routes.append({"line": line_display, "direction": direction, "route": route, "transport_type": transport_type, "stop": stop_name})
 
         effective = schedule_type
         if effective not in line_data or not line_data.get(effective):
@@ -158,7 +160,7 @@ def _compute_next_departures(data: dict, now: datetime, country: str = "CZ") -> 
                 next_buses.append(
                     {
                         "minutes_until": diff,
-                        "line": line_num,
+                        "line": line_display,
                         "time": dt.strftime("%H:%M"),
                         "direction": direction,
                         "route": route,

@@ -124,10 +124,12 @@ class MHDTimetablePanel extends HTMLElement {
 
   _lineRowHTML(num, data) {
     const types = (data.schedule_types || []).map(t => SCHEDULE_LABELS[t] || t).join(", ");
+    const tt = data.transport_type || "bus";
+    const badge = tt === "vlak" ? "🚆" : tt === "tramvaj" ? "🚋" : tt === "trolejbus" ? "🚎" : num;
     return `
       <div class="line-row">
         <div class="lr-left">
-          <span class="lr-num">${num}</span>
+          <span class="lr-num">${badge}</span>
           <div class="lr-meta">
             <span class="lr-dir">${data.direction || ""}</span>
             <span class="lr-types">${types}</span>
@@ -164,15 +166,30 @@ class MHDTimetablePanel extends HTMLElement {
     const ld = this._getLineData();
     const types = ld.schedule_types || ["workday", "saturday", "sunday"];
     const tab = this._editorTab;
+    const tt = ld.transport_type || "bus";
+    const isVlak = tt === "vlak";
+    const typeLabels = {bus: "Bus", tramvaj: "Tramvaj", trolejbus: "Trolejbus", vlak: "Vlak"};
+    const headerTitle = isNew ? "Nová linka"
+      : isVlak ? `Vlak${ld.direction ? " → " + ld.direction : ""}`
+      : `${typeLabels[tt] || "Linka"} ${this._editorLine}`;
     return `
       <div class="le-header">
         <button class="back-btn">← Zpět</button>
-        <h2>${isNew ? "Nová linka" : `Linka ${this._editorLine}`}</h2>
+        <h2>${headerTitle}</h2>
       </div>
       <div class="le-fields">
         <div class="field">
-          <label>Číslo linky</label>
-          <input id="le-num" value="${isNew ? "" : this._editorLine}" ${isNew ? "" : "readonly"}>
+          <label>Typ dopravy</label>
+          <select id="le-type">
+            <option value="bus" ${tt === "bus" ? "selected" : ""}>🚌 Bus</option>
+            <option value="tramvaj" ${tt === "tramvaj" ? "selected" : ""}>🚋 Tramvaj</option>
+            <option value="trolejbus" ${tt === "trolejbus" ? "selected" : ""}>🚎 Trolejbus</option>
+            <option value="vlak" ${tt === "vlak" ? "selected" : ""}>🚆 Vlak</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Číslo linky${isVlak ? " (u vlaku nepovinné)" : ""}</label>
+          <input id="le-num" value="${isNew ? "" : this._editorLine}" ${isNew ? `placeholder="${isVlak ? "Nevyplňovat u vlaků" : ""}"` : "readonly"}>
         </div>
         <div class="field">
           <label>Směr (cílová zastávka)</label>
@@ -361,9 +378,16 @@ class MHDTimetablePanel extends HTMLElement {
 
     root.querySelector(".line-save-btn")?.addEventListener("click", () => {
       this._syncFields();
-      const num = root.querySelector("#le-num")?.value?.trim();
-      if (!num) { alert("Zadejte číslo linky."); return; }
       const ld = this._getLineData();
+      let num = root.querySelector("#le-num")?.value?.trim();
+      if (!num) {
+        if ((ld.transport_type || "bus") === "vlak") {
+          const dir = (ld.direction || "linka").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/, "").slice(0, 20);
+          num = `vlak_${dir || "linka"}_${Date.now().toString(36)}`;
+        } else {
+          alert("Zadejte číslo linky."); return;
+        }
+      }
       if (!this._data.lines) this._data.lines = {};
       this._data.lines[num] = ld;
       if (this._editorLine === "__new__") delete this._data._newLine;
@@ -377,14 +401,17 @@ class MHDTimetablePanel extends HTMLElement {
     const ld = this._getLineData();
     const dir = root.querySelector("#le-dir");
     const route = root.querySelector("#le-route");
+    const typeEl = root.querySelector("#le-type");
     if (dir) ld.direction = dir.value;
     if (route) ld.route = route.value;
+    if (typeEl) ld.transport_type = typeEl.value;
   }
 
   _getLineData() {
     if (this._editorLine === "__new__") {
       if (!this._data._newLine) this._data._newLine = {
         direction: "", route: "", valid_from: new Date().toISOString().slice(0, 10),
+        transport_type: "bus",
         schedule_types: ["workday", "saturday", "sunday"],
         workday: {}, saturday: {}, sunday: {}, holiday: {}, school_vacation: {},
       };

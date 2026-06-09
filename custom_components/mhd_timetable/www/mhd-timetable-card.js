@@ -53,10 +53,6 @@ class MHDTimetableCard extends HTMLElement {
     const allDeps = (attr.next_departures || []).slice(0, count);
     const homeStop = attr.stop || this._config.entity;
     const stopName = this._cfg("header_text", null) || homeStop;
-    const rawIcon = this._cfg("header_icon", "🚌");
-    const iconHtml = (rawIcon.indexOf("mdi:") === 0 || rawIcon.indexOf("hass:") === 0)
-      ? `<ha-icon icon="${rawIcon}" class="header-ha-icon"></ha-icon>`
-      : `<span class="header-icon">${rawIcon}</span>`;
 
     // Split into home-stop departures and other-stop groups
     var homeDeps = allDeps.filter(function(d) { return !d.stop || d.stop === homeStop; });
@@ -93,7 +89,6 @@ class MHDTimetableCard extends HTMLElement {
       <style>${this._styles()}</style>
       <ha-card>
         <div class="card-header">
-          ${iconHtml}
           <span class="stop-name">${stopName}</span>
         </div>
         <div class="departures">
@@ -175,9 +170,7 @@ class MHDTimetableCard extends HTMLElement {
         padding: 14px 16px 12px;
         border-bottom: 1px solid var(--divider-color, rgba(255,255,255,.1));
       }
-      .header-icon { font-size: 1.2em; line-height: 1; }
-      .header-ha-icon { --mdc-icon-size: 1.3em; color: var(--primary-color); }
-      .stop-name { font-size: 1.05em; font-weight: 600; color: var(--primary-text-color); }
+.stop-name { font-size: 1.05em; font-weight: 600; color: var(--primary-text-color); }
 
       .departures { padding: 4px 0 8px; }
       .empty { padding: 16px; text-align: center; color: var(--secondary-text-color); font-size: 0.95em; }
@@ -266,7 +259,6 @@ class MHDTimetableCard extends HTMLElement {
     return {
       entity: entity,
       departures_count: 3,
-      header_icon: "🚌",
       urgent_minutes: 5,
       warning_minutes: 10,
     };
@@ -304,10 +296,8 @@ class MHDTimetableCardEditor extends HTMLElement {
     var entity     = c.entity || "";
     var headerText = c.header_text || "";
     var count      = c.departures_count !== undefined ? c.departures_count : 3;
-    var icon       = c.header_icon !== undefined ? c.header_icon : "🚌";
     var urgent     = c.urgent_minutes !== undefined ? c.urgent_minutes : 5;
     var warning    = c.warning_minutes !== undefined ? c.warning_minutes : 10;
-    var isMdi      = icon.indexOf("mdi:") === 0 || icon.indexOf("hass:") === 0;
 
     // Discover other stops from sensor routes
     var sensorAttr = (this._hass && entity && this._hass.states[entity])
@@ -378,10 +368,6 @@ class MHDTimetableCardEditor extends HTMLElement {
         }
         input:focus { outline: none; border-color: var(--primary-color); }
 
-        .icon-prev { display: flex; align-items: center; gap: 7px; margin-top: 6px; }
-        .icon-prev .pi { font-size: 1.5em; line-height: 1; }
-        .icon-prev .pl { font-size: 0.76em; color: var(--secondary-text-color); }
-
         .legend {
           display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px;
           padding: 9px 12px; border-radius: 8px;
@@ -433,21 +419,11 @@ class MHDTimetableCardEditor extends HTMLElement {
         <details>
           <summary>Zobrazení</summary>
           <div class="sb">
-            <div class="row">
+            <div class="row full">
               <div class="field">
                 <label>Počet odjezdů</label>
                 <input name="departures_count" type="number" min="1" max="10" value="${count}">
                 <p class="hint">Nejbližších spojů (1–10, výchozí 3)</p>
-              </div>
-              <div class="field">
-                <label>Ikona</label>
-                <input name="header_icon" type="text" value="${icon}" placeholder="🚌 nebo mdi:bus">
-                <div class="icon-prev">
-                  ${isMdi
-                    ? `<ha-icon icon="${icon}" style="--mdc-icon-size:1.4em;color:var(--primary-color)"></ha-icon>`
-                    : `<span class="pi">${icon}</span>`}
-                  <span class="pl icon-label">${isMdi ? icon : "emoji ikona"}</span>
-                </div>
               </div>
             </div>
           </div>
@@ -517,7 +493,6 @@ class MHDTimetableCardEditor extends HTMLElement {
     var fields = {
       header_text:      c.header_text || "",
       departures_count: c.departures_count !== undefined ? c.departures_count : 3,
-      header_icon:      c.header_icon !== undefined ? c.header_icon : "🚌",
       urgent_minutes:   c.urgent_minutes !== undefined ? c.urgent_minutes : 5,
       warning_minutes:  c.warning_minutes !== undefined ? c.warning_minutes : 10,
     };
@@ -540,7 +515,6 @@ class MHDTimetableCardEditor extends HTMLElement {
       var stop = leg.dataset.legend;
       if (stop) self._updateLegend(stop);
     });
-    this._updateIconPreview(fields.header_icon);
   }
 
   _setupEntityPicker(entity) {
@@ -582,9 +556,6 @@ class MHDTimetableCardEditor extends HTMLElement {
           if (name === "urgent_minutes" || name === "warning_minutes") {
             self._updateLegend("");
           }
-          if (name === "header_icon") {
-            self._updateIconPreview(value);
-          }
         }
       });
     });
@@ -611,36 +582,6 @@ class MHDTimetableCardEditor extends HTMLElement {
     if (o) o.textContent = "nad " + warning + " min";
   }
 
-  _updateIconPreview(icon) {
-    var isMdi = icon.indexOf("mdi:") === 0 || icon.indexOf("hass:") === 0;
-    var prev = this.querySelector(".icon-prev");
-    if (!prev) return;
-    var label = prev.querySelector(".icon-label");
-    var pi = prev.querySelector(".pi");
-    var haIcon = prev.querySelector("ha-icon");
-    if (isMdi) {
-      if (pi) { pi.style.display = "none"; }
-      if (!haIcon) {
-        var el = document.createElement("ha-icon");
-        el.setAttribute("style", "--mdc-icon-size:1.4em;color:var(--primary-color)");
-        prev.insertBefore(el, prev.firstChild);
-        haIcon = el;
-      }
-      haIcon.setAttribute("icon", icon);
-      haIcon.style.display = "";
-    } else {
-      if (haIcon) haIcon.style.display = "none";
-      if (!pi) {
-        var span = document.createElement("span");
-        span.className = "pi";
-        prev.insertBefore(span, prev.firstChild);
-        pi = span;
-      }
-      pi.textContent = icon;
-      pi.style.display = "";
-    }
-    if (label) label.textContent = isMdi ? icon : "emoji ikona";
-  }
 }
 
 if (!customElements.get("mhd-timetable-card")) {

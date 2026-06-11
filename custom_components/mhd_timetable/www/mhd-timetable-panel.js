@@ -73,7 +73,8 @@ const I18N = {
     help_6: "<strong>Priorita</strong> při výběru jízdního řádu: Státní svátek → aktuální prázdninové období → Sobota/Neděle → Pracovní den. Pokud pro dané prázdniny časy nevyplníte, použije se automaticky pracovní den.",
     help_7: "<strong>Uložení</strong> — po všech změnách klikněte na <em>Uložit změny</em> dole. Senzor se aktualizuje okamžitě.",
     help_card_title: "Přidání karty na dashboard",
-    help_card_hint: "Dashboard → upravit → Přidat kartu → Manuální → vložit:",
+    help_card_auto: "Karta je připravena automaticky – na dashboardu zvolte <em>Upravit → Přidat kartu</em> a vyhledejte <strong>Jízdní řády</strong>. Senzor zastávky se doplní sám. Toto je doporučený postup.",
+    help_card_hint: "Případně můžete kartu vložit ručně (Přidat kartu → Manuální):",
     copy: "Kopírovat", copied: "Zkopírováno ✓", copy_failed: "Nepodařilo se kopírovat",
   },
   sk: {
@@ -125,7 +126,8 @@ const I18N = {
     help_6: "<strong>Priorita</strong> pri výbere cestovného poriadku: Štátny sviatok → aktuálne prázdninové obdobie → Sobota/Nedeľa → Pracovný deň. Ak pre dané prázdniny časy nevyplníte, použije sa automaticky pracovný deň.",
     help_7: "<strong>Uloženie</strong> — po všetkých zmenách kliknite na <em>Uložiť zmeny</em> dole. Senzor sa aktualizuje okamžite.",
     help_card_title: "Pridanie karty na dashboard",
-    help_card_hint: "Dashboard → upraviť → Pridať kartu → Manuálne → vložiť:",
+    help_card_auto: "Karta je pripravená automaticky – na dashboarde zvoľte <em>Upraviť → Pridať kartu</em> a vyhľadajte <strong>Cestovné poriadky</strong>. Senzor zastávky sa doplní sám. Toto je odporúčaný postup.",
+    help_card_hint: "Prípadne môžete kartu vložiť ručne (Pridať kartu → Manuálne):",
     copy: "Kopírovať", copied: "Skopírované ✓", copy_failed: "Nepodarilo sa kopírovať",
   },
   en: {
@@ -177,7 +179,8 @@ const I18N = {
     help_6: "<strong>Priority</strong> when picking the timetable: Public holiday → current vacation period → Saturday/Sunday → Workday. If you leave a vacation empty, the workday schedule is used.",
     help_7: "<strong>Saving</strong> — after all changes click <em>Save changes</em> at the bottom. The sensor updates immediately.",
     help_card_title: "Adding the card to a dashboard",
-    help_card_hint: "Dashboard → edit → Add card → Manual → paste:",
+    help_card_auto: "The card is ready automatically – on your dashboard choose <em>Edit → Add card</em> and search for <strong>Timetables</strong>. The stop sensor is filled in for you. This is the recommended way.",
+    help_card_hint: "Alternatively you can add the card manually (Add card → Manual):",
     copy: "Copy", copied: "Copied ✓", copy_failed: "Copy failed",
   },
   de: {
@@ -229,7 +232,8 @@ const I18N = {
     help_6: "<strong>Priorität</strong> bei der Fahrplanwahl: Feiertag → aktuelle Ferienzeit → Samstag/Sonntag → Werktag. Bleibt eine Ferienzeit leer, wird der Werktagsfahrplan verwendet.",
     help_7: "<strong>Speichern</strong> — klicken Sie nach allen Änderungen unten auf <em>Änderungen speichern</em>. Der Sensor aktualisiert sich sofort.",
     help_card_title: "Karte zum Dashboard hinzufügen",
-    help_card_hint: "Dashboard → bearbeiten → Karte hinzufügen → Manuell → einfügen:",
+    help_card_auto: "Die Karte ist automatisch bereit – wählen Sie auf dem Dashboard <em>Bearbeiten → Karte hinzufügen</em> und suchen Sie nach <strong>Fahrpläne</strong>. Der Haltestellen-Sensor wird automatisch ausgefüllt. Dies ist der empfohlene Weg.",
+    help_card_hint: "Alternativ können Sie die Karte manuell hinzufügen (Karte hinzufügen → Manuell):",
     copy: "Kopieren", copied: "Kopiert ✓", copy_failed: "Kopieren fehlgeschlagen",
   },
   fr: {
@@ -281,7 +285,8 @@ const I18N = {
     help_6: "<strong>Priorité</strong> du choix de l'horaire : Jour férié → période de vacances en cours → Samedi/Dimanche → Jour ouvré. Si une période reste vide, l'horaire de jour ouvré est utilisé.",
     help_7: "<strong>Enregistrement</strong> — après vos modifications, cliquez sur <em>Enregistrer les modifications</em> en bas. Le capteur se met à jour immédiatement.",
     help_card_title: "Ajouter la carte au tableau de bord",
-    help_card_hint: "Tableau de bord → modifier → Ajouter une carte → Manuel → coller :",
+    help_card_auto: "La carte est prête automatiquement – sur votre tableau de bord, choisissez <em>Modifier → Ajouter une carte</em> et recherchez <strong>Horaires</strong>. Le capteur de l'arrêt est rempli automatiquement. C'est la méthode recommandée.",
+    help_card_hint: "Vous pouvez aussi ajouter la carte manuellement (Ajouter une carte → Manuel) :",
     copy: "Copier", copied: "Copié ✓", copy_failed: "Échec de la copie",
   },
   es: {
@@ -333,7 +338,8 @@ const I18N = {
     help_6: "<strong>Prioridad</strong> al elegir el horario: Festivo → periodo de vacaciones actual → Sábado/Domingo → Día laborable. Si deja un periodo vacío, se usa el horario laborable.",
     help_7: "<strong>Guardar</strong> — tras todos los cambios haga clic en <em>Guardar cambios</em> abajo. El sensor se actualiza inmediatamente.",
     help_card_title: "Añadir la tarjeta al panel",
-    help_card_hint: "Panel → editar → Añadir tarjeta → Manual → pegar:",
+    help_card_auto: "La tarjeta está lista automáticamente – en su panel elija <em>Editar → Añadir tarjeta</em> y busque <strong>Horarios</strong>. El sensor de la parada se rellena solo. Esta es la forma recomendada.",
+    help_card_hint: "También puede añadir la tarjeta manualmente (Añadir tarjeta → Manual):",
     copy: "Copiar", copied: "Copiado ✓", copy_failed: "Error al copiar",
   },
 };
@@ -435,9 +441,11 @@ class MHDTimetablePanel extends HTMLElement {
   }
 
   _cardYaml() {
-    const slug = (this._data?.stop || "název_zastávky")
+    // Must mirror HA's slugify of the sensor name "MHD <stop>": non-alphanumeric
+    // runs become a single underscore (e.g. "Praha-Smíchov" → praha_smichov)
+    const slug = (this._data?.stop || "nazev_zastavky")
       .toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
-      .replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+      .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
     return `type: custom:mhd-timetable-card\nentity: sensor.mhd_${slug}`;
   }
 
@@ -515,6 +523,9 @@ class MHDTimetablePanel extends HTMLElement {
         ${steps}
         <div class="help-divider"></div>
         <div class="help-card-title">${this._t("help_card_title")}</div>
+        <p style="font-size:0.9em;color:var(--primary-text-color);margin:0 0 10px;line-height:1.5">
+          ${this._t("help_card_auto")}
+        </p>
         <p style="font-size:0.88em;color:var(--secondary-text-color);margin:0 0 8px">
           ${this._t("help_card_hint")}
         </p>

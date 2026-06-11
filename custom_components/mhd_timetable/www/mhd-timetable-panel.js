@@ -777,7 +777,7 @@ class MHDTimetablePanel extends HTMLElement {
       let num = root.querySelector("#le-num")?.value?.trim();
       if (!num) {
         if ((ld.transport_type || "bus") === "train") {
-          const dir = (ld.direction || "linka").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/, "").slice(0, 20);
+          const dir = (ld.direction || "linka").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 20);
           num = `train_${dir || "linka"}_${Date.now().toString(36)}`;
         } else {
           alert("Zadejte číslo linky."); return;

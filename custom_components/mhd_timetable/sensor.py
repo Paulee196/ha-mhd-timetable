@@ -137,7 +137,7 @@ def _compute_next_departures(data: dict, now: datetime, country: str = "CZ") -> 
         direction = line_data.get("direction", "")
         route = line_data.get("route", "")
         transport_type = line_data.get("transport_type", "bus")
-        custom_stop = line_data.get("custom_stop", "").strip()
+        custom_stop = (line_data.get("custom_stop") or "").strip()
         stop_name = custom_stop if custom_stop else home_stop
         line_display = "Vlak" if transport_type in ("train", "vlak") else line_num
 

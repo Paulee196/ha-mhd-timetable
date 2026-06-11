@@ -1,0 +1,28 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Pridať zastávku",
+        "data": {
+          "stop_name": "Názov zastávky",
+          "output_path": "Cesta pre uloženie JSON súboru"
+        },
+        "description": "Zadajte názov zastávky a voliteľne cestu pre export cestovného poriadku ako JSON (napr. /config/www/cestovne_poriadky/moja_zastavka.json)."
+      }
+    },
+    "error": {},
+    "abort": {
+      "already_configured": "Táto zastávka je už nakonfigurovaná."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Nastavenia zastávky",
+        "data": {
+          "output_path": "Cesta pre uloženie JSON súboru"
+        }
+      }
+    }
+  }
+}

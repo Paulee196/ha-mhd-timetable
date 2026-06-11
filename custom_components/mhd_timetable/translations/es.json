@@ -1,0 +1,28 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Añadir parada",
+        "data": {
+          "stop_name": "Nombre de la parada",
+          "output_path": "Ruta del archivo JSON de salida"
+        },
+        "description": "Introduzca el nombre de la parada y, opcionalmente, una ruta para exportar el horario como JSON (p. ej. /config/www/horarios/mi_parada.json)."
+      }
+    },
+    "error": {},
+    "abort": {
+      "already_configured": "Esta parada ya está configurada."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ajustes de la parada",
+        "data": {
+          "output_path": "Ruta del archivo JSON de salida"
+        }
+      }
+    }
+  }
+}

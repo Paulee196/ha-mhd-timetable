@@ -44,7 +44,7 @@ class MHDNextDeparturesSensor(SensorEntity):
         self._entry_id = entry.entry_id
         self._attr_unique_id = f"mhd_timetable_{entry.entry_id}"
         self._attr_name = f"MHD {entry.data['stop_name']}"
-        self._attr_native_value = "Načítání..."
+        self._attr_native_value = _lang_strings(hass)["loading"]
         self._attr_extra_state_attributes = {}
         self._tz = ZoneInfo(hass.config.time_zone)
 
@@ -64,18 +64,19 @@ class MHDNextDeparturesSensor(SensorEntity):
     async def _async_update(self, _now) -> None:
         data = self._hass.data[DOMAIN][self._entry_id]["data"]
         country = self._hass.config.country or "CZ"
+        strings = _lang_strings(self._hass)
         now = datetime.now(self._tz)
-        result = _compute_next_departures(data, now, country)
+        result = _compute_next_departures(data, now, country, strings)
 
         departures = result["next_departures"]
         if not departures:
-            self._attr_native_value = "Žádné spoje"
+            self._attr_native_value = strings["none"]
         else:
             first = departures[0]
-            line_prefix = first["line"] if first.get("transport_type") == "train" else f"Linka {first['line']}"
-            self._attr_native_value = (
-                f"{line_prefix} - Směr {first['direction']} "
-                f"v {first['time']} (za {first['minutes_until']} min)"
+            line_prefix = first["line"] if first.get("transport_type") == "train" else f"{strings['line']} {first['line']}"
+            self._attr_native_value = strings["state"].format(
+                line=line_prefix, direction=first["direction"],
+                time=first["time"], min=first["minutes_until"],
             )
 
         self._attr_extra_state_attributes = {
@@ -89,7 +90,10 @@ class MHDNextDeparturesSensor(SensorEntity):
             "time": departures[0]["time"] if departures else "",
             "direction": departures[0]["direction"] if departures else "",
             "next_list": ", ".join(
-                f"{d['line']} - Směr {d['direction']} {d['time']} ({d['minutes_until']} min)"
+                strings["next"].format(
+                    line=d["line"], direction=d["direction"],
+                    time=d["time"], min=d["minutes_until"],
+                )
                 for d in departures[1:3]
             ),
         }
@@ -122,6 +126,51 @@ def _get_schedule_type(data: dict, today: date, country: str) -> str:
 # Legacy Czech keys stored by older versions → canonical keys
 _TT_CANONICAL = {"vlak": "train", "tramvaj": "tram", "trolejbus": "trolleybus", "autobus": "bus"}
 
+# Sensor state strings per HA language (fallback: en)
+_STRINGS = {
+    "cs": {
+        "line": "Linka", "train": "Vlak",
+        "state": "{line} - Směr {direction} v {time} (za {min} min)",
+        "next": "{line} - Směr {direction} {time} ({min} min)",
+        "none": "Žádné spoje", "loading": "Načítání...",
+    },
+    "sk": {
+        "line": "Linka", "train": "Vlak",
+        "state": "{line} - Smer {direction} o {time} (o {min} min)",
+        "next": "{line} - Smer {direction} {time} ({min} min)",
+        "none": "Žiadne spoje", "loading": "Načítavanie...",
+    },
+    "en": {
+        "line": "Line", "train": "Train",
+        "state": "{line} - To {direction} at {time} (in {min} min)",
+        "next": "{line} - To {direction} {time} ({min} min)",
+        "none": "No departures", "loading": "Loading...",
+    },
+    "de": {
+        "line": "Linie", "train": "Zug",
+        "state": "{line} - Richtung {direction} um {time} (in {min} Min.)",
+        "next": "{line} - Richtung {direction} {time} ({min} Min.)",
+        "none": "Keine Abfahrten", "loading": "Wird geladen...",
+    },
+    "fr": {
+        "line": "Ligne", "train": "Train",
+        "state": "{line} - Direction {direction} à {time} (dans {min} min)",
+        "next": "{line} - Direction {direction} {time} ({min} min)",
+        "none": "Aucun départ", "loading": "Chargement...",
+    },
+    "es": {
+        "line": "Línea", "train": "Tren",
+        "state": "{line} - Dirección {direction} a las {time} (en {min} min)",
+        "next": "{line} - Dirección {direction} {time} ({min} min)",
+        "none": "Sin salidas", "loading": "Cargando...",
+    },
+}
+
+
+def _lang_strings(hass: HomeAssistant) -> dict:
+    lang = (getattr(hass.config, "language", None) or "en").lower().split("-")[0]
+    return _STRINGS.get(lang, _STRINGS["en"])
+
 
 def _effective_schedule(line_data: dict, schedule_type: str) -> str | None:
     """Resolve schedule key for a line incl. fallback (holiday→sunday, vacation→workday)."""
@@ -136,7 +185,8 @@ def _effective_schedule(line_data: dict, schedule_type: str) -> str | None:
     return effective
 
 
-def _compute_next_departures(data: dict, now: datetime, country: str = "CZ") -> dict:
+def _compute_next_departures(data: dict, now: datetime, country: str = "CZ", strings: dict | None = None) -> dict:
+    strings = strings or _STRINGS["en"]
     today = now.date()
     schedule_type = _get_schedule_type(data, today, country)
     # Departures after midnight must follow TOMORROW's schedule type
@@ -156,8 +206,12 @@ def _compute_next_departures(data: dict, now: datetime, country: str = "CZ") -> 
         custom_stop = (line_data.get("custom_stop") or "").strip()
         stop_name = custom_stop if custom_stop else home_stop
         if transport_type == "train":
-            category = (line_data.get("train_category") or "").strip()
-            line_display = f"Vlak {category}".strip()
+            if line_num != "train" and not line_num.startswith(("train_", "vlak_")):
+                # Explicit designation typed by the user (S3, RE5, C1…)
+                line_display = line_num
+            else:
+                category = (line_data.get("train_category") or "").strip()
+                line_display = f"{strings['train']} {category}".strip()
         else:
             line_display = line_num
 

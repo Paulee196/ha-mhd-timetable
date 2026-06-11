@@ -1,0 +1,28 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Haltestelle hinzufügen",
+        "data": {
+          "stop_name": "Name der Haltestelle",
+          "output_path": "Pfad für die JSON-Ausgabedatei"
+        },
+        "description": "Geben Sie den Namen der Haltestelle ein und optional einen Pfad, um den Fahrplan als JSON zu exportieren (z. B. /config/www/fahrplaene/meine_haltestelle.json)."
+      }
+    },
+    "error": {},
+    "abort": {
+      "already_configured": "Diese Haltestelle ist bereits konfiguriert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Haltestellen-Einstellungen",
+        "data": {
+          "output_path": "Pfad für die JSON-Ausgabedatei"
+        }
+      }
+    }
+  }
+}

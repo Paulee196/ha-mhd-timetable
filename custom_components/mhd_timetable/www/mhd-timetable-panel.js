@@ -3,20 +3,334 @@
  * Accessible from HA sidebar without needing a Lovelace card
  */
 
-const SCHEDULE_LABELS = {
-  workday: "Pracovní den",
-  saturday: "Sobota",
-  sunday: "Neděle",
-  holiday: "Státní svátek",
-};
-const BASE_TYPES = Object.keys(SCHEDULE_LABELS);
+const BASE_TYPES = ["workday", "saturday", "sunday", "holiday"];
 
-const TRANSPORT_TYPES = [
-  { key: "bus",        label: "Autobus",   icon: "🚌", color: "#1976d2" },
-  { key: "trolleybus", label: "Trolejbus", icon: "🚎", color: "#0097a7" },
-  { key: "tram",       label: "Tramvaj",   icon: "🚋", color: "#f57c00" },
-  { key: "train",      label: "Vlak",      icon: "🚂", color: "#388e3c" },
+const TRANSPORT_META = [
+  { key: "bus",        icon: "🚌", color: "#1976d2" },
+  { key: "trolleybus", icon: "🚎", color: "#0097a7" },
+  { key: "tram",       icon: "🚋", color: "#f57c00" },
+  { key: "train",      icon: "🚂", color: "#388e3c" },
 ];
+
+// Train categories offered per UI language (country conventions)
+const TRAIN_CATEGORIES = {
+  cs: [{ v: "R", l: "R – rychlík" }, { v: "Sp", l: "Sp – spěšný vlak" }, { v: "Ex", l: "Ex – expres" }],
+  sk: [{ v: "R", l: "R – rýchlik" }, { v: "Zr", l: "Zr – zrýchlený vlak" }, { v: "REX", l: "REX – regionálny expres" }],
+  en: [],
+  de: [{ v: "S", l: "S – S-Bahn" }, { v: "RB", l: "RB – Regionalbahn" }, { v: "RE", l: "RE – Regional-Express" }, { v: "IRE", l: "IRE – Interregio-Express" }],
+  fr: [{ v: "TER", l: "TER" }, { v: "RER", l: "RER" }],
+  es: [{ v: "C", l: "C – Cercanías" }, { v: "MD", l: "MD – Media Distancia" }, { v: "R", l: "R – Regional" }],
+};
+const TCAT_COLORS = ["#d32f2f", "#7b1fa2", "#00796b", "#5d4037"];
+
+const I18N = {
+  cs: {
+    title: "Jízdní řády", loading: "Načítání…",
+    no_stops: "Žádné zastávky nejsou nakonfigurovány.",
+    no_stops_hint: "Přidejte zastávku v <strong>Nastavení → Integrace → Jízdní řády</strong>.",
+    help_tooltip: "Nápověda",
+    tab_lines: "Linky", tab_vacation: "Prázdniny",
+    no_lines: "Zatím žádné linky. Přidejte první linku tlačítkem níže.",
+    add_line: "+ Přidat linku", save_changes: "Uložit změny", saving: "Ukládání…",
+    load_failed: "Nepodařilo se načíst data zastávky.", edit: "Upravit", vac_count: "+ {0} prázdn.",
+    sched_workday: "Pracovní den", sched_saturday: "Sobota", sched_sunday: "Neděle", sched_holiday: "Státní svátek",
+    tt_bus: "Autobus", tt_trolleybus: "Trolejbus", tt_tram: "Tramvaj", tt_train: "Vlak",
+    new_line: "Nová linka", line_word: "Linka", train_word: "Vlak",
+    transport_type: "Typ dopravy",
+    train_category: "Kategorie vlaku (nepovinné)",
+    train_cat_hint: "Vlaky stejným směrem patří do jedné linky. Kategorií rozlišíte rychlejší vlaky od osobních.",
+    train_designation: "Označení linky (nepovinné)", train_designation_ph: "obvykle nechte prázdné",
+    line_number: "Číslo linky",
+    direction: "Směr (cílová zastávka)", route: "Trasa (zastávky oddělené čárkou)",
+    custom_stop: "Jede z jiné zastávky", custom_stop_ph: "Název zastávky (např. Hlavní nádraží)",
+    active_schedules: "Aktivní rozvrhy", vac_tabs_list: "Prázdninové záložky:",
+    vac_tabs_empty: "Prázdninová období definujte v záložce <em>Prázdniny</em>.",
+    grid_hint: "Kliknutím na hodinu rozbalíte minuty. Kliknutím na minutu ji přidáte nebo odeberete.",
+    vac_grid_hint: "Jízdní řád pro <strong>{0}</strong>. Prázdné = použije se pracovní den.",
+    add_line_btn: "Přidat linku", save_line: "Uložit linku", back: "← Zpět",
+    enter_direction: "Zadejte směr (cílovou zastávku).",
+    train_exists: "Vlaková linka tímto směrem a kategorií už existuje. Upravte ji v seznamu linek, nebo zvolte jinou kategorii.",
+    enter_line_number: "Zadejte číslo linky.",
+    confirm_del_train: "Smazat vlak{0} směr {1}?", confirm_del_line: "Smazat linku {0}?",
+    vac_intro: "<strong>Státní svátky</strong> jsou rozpoznány automaticky podle nastavení vaší země v Home Assistant. Zde definujte školní a jiná prázdninová období.",
+    groups_title: "Skupiny rozvrhu",
+    groups_hint: "Seskupte více období pod jeden jízdní řád. Např. \"Prázdninový provoz\" pro letní i vánoční prázdniny.",
+    groups_empty: "Žádné skupiny. Přidejte níže nebo nechte prázdné, pokud každé období má jiný rozvrh.",
+    group_default: "Skupina", period_default: "Prázdniny",
+    group_name_ph: "Název skupiny (např. Prázdninový provoz)", add_group: "+ Přidat skupinu",
+    periods_title: "Prázdninová období", periods_empty: "Žádná období. Přidejte první níže.",
+    no_group_opt: "— bez skupiny —", period_name_ph: "Název (např. Letní prázdniny)",
+    add: "+ Přidat", save: "Uložit",
+    enter_group_name: "Zadejte název skupiny.", enter_dates: "Zadejte datum začátku a konce.",
+    confirm_del_group: "Smazat skupinu \"{0}\"? Všechna nastavení rozvrhu pro tuto skupinu budou ztracena.",
+    save_error: "Chyba při ukládání: ",
+    help_title: "Jak to funguje",
+    help_1: "<strong>Státní svátky</strong> jsou rozpoznány automaticky podle nastavení země v Home Assistant. Nemusíte je nikde vypisovat. V editoru linky stačí nastavit záložku <em>Státní svátek</em>.",
+    help_2: "<strong>Prázdninová období</strong> si definujete ručně v záložce <em>Prázdniny</em>. Zadáte název (např. Letní prázdniny) a datum od–do.",
+    help_3: "<strong>Skupiny rozvrhu</strong> slouží ke sdílení jednoho jízdního řádu pro více období. Pokud např. Letní prázdniny i Vánoce jedou stejně, vytvořte skupinu <em>Prázdninový provoz</em> a obě období do ní přiřaďte. V editoru linky pak nastavíte časy jen jednou.",
+    help_4: "<strong>Linky</strong> přidáte v záložce <em>Linky</em>. U každé linky nastavíte časy pro jednotlivé typy dnů pomocí záložek. Kliknutím na hodinu rozbalíte minuty a kliknutím na minutu ji přidáte nebo odeberete.",
+    help_5: "<strong>Priorita</strong> při výběru jízdního řádu: Státní svátek → aktuální prázdninové období → Sobota/Neděle → Pracovní den. Pokud pro dané prázdniny časy nevyplníte, použije se automaticky pracovní den.",
+    help_6: "<strong>Uložení</strong> — po všech změnách klikněte na <em>Uložit změny</em> dole. Senzor se aktualizuje okamžitě.",
+    help_card_title: "Přidání karty na dashboard",
+    help_card_hint: "Dashboard → upravit → Přidat kartu → Manuální → vložit:",
+    copy: "Kopírovat", copied: "Zkopírováno ✓", copy_failed: "Nepodařilo se kopírovat",
+  },
+  sk: {
+    title: "Cestovné poriadky", loading: "Načítavanie…",
+    no_stops: "Nie sú nakonfigurované žiadne zastávky.",
+    no_stops_hint: "Pridajte zastávku v <strong>Nastavenia → Integrácie → Cestovné poriadky</strong>.",
+    help_tooltip: "Pomocník",
+    tab_lines: "Linky", tab_vacation: "Prázdniny",
+    no_lines: "Zatiaľ žiadne linky. Pridajte prvú linku tlačidlom nižšie.",
+    add_line: "+ Pridať linku", save_changes: "Uložiť zmeny", saving: "Ukladanie…",
+    load_failed: "Nepodarilo sa načítať údaje zastávky.", edit: "Upraviť", vac_count: "+ {0} prázdn.",
+    sched_workday: "Pracovný deň", sched_saturday: "Sobota", sched_sunday: "Nedeľa", sched_holiday: "Štátny sviatok",
+    tt_bus: "Autobus", tt_trolleybus: "Trolejbus", tt_tram: "Električka", tt_train: "Vlak",
+    new_line: "Nová linka", line_word: "Linka", train_word: "Vlak",
+    transport_type: "Typ dopravy",
+    train_category: "Kategória vlaku (nepovinné)",
+    train_cat_hint: "Vlaky rovnakým smerom patria do jednej linky. Kategóriou rozlíšite rýchlejšie vlaky od osobných.",
+    train_designation: "Označenie linky (nepovinné)", train_designation_ph: "obvykle nechajte prázdne",
+    line_number: "Číslo linky",
+    direction: "Smer (cieľová zastávka)", route: "Trasa (zastávky oddelené čiarkou)",
+    custom_stop: "Ide z inej zastávky", custom_stop_ph: "Názov zastávky (napr. Hlavná stanica)",
+    active_schedules: "Aktívne rozvrhy", vac_tabs_list: "Prázdninové záložky:",
+    vac_tabs_empty: "Prázdninové obdobia definujte v záložke <em>Prázdniny</em>.",
+    grid_hint: "Kliknutím na hodinu rozbalíte minúty. Kliknutím na minútu ju pridáte alebo odoberiete.",
+    vac_grid_hint: "Cestovný poriadok pre <strong>{0}</strong>. Prázdne = použije sa pracovný deň.",
+    add_line_btn: "Pridať linku", save_line: "Uložiť linku", back: "← Späť",
+    enter_direction: "Zadajte smer (cieľovú zastávku).",
+    train_exists: "Vlaková linka týmto smerom a kategóriou už existuje. Upravte ju v zozname liniek, alebo zvoľte inú kategóriu.",
+    enter_line_number: "Zadajte číslo linky.",
+    confirm_del_train: "Zmazať vlak{0} smer {1}?", confirm_del_line: "Zmazať linku {0}?",
+    vac_intro: "<strong>Štátne sviatky</strong> sú rozpoznané automaticky podľa nastavenia vašej krajiny v Home Assistant. Tu definujte školské a iné prázdninové obdobia.",
+    groups_title: "Skupiny rozvrhu",
+    groups_hint: "Zoskupte viac období pod jeden cestovný poriadok. Napr. \"Prázdninová prevádzka\" pre letné aj vianočné prázdniny.",
+    groups_empty: "Žiadne skupiny. Pridajte nižšie alebo nechajte prázdne, ak má každé obdobie iný rozvrh.",
+    group_default: "Skupina", period_default: "Prázdniny",
+    group_name_ph: "Názov skupiny (napr. Prázdninová prevádzka)", add_group: "+ Pridať skupinu",
+    periods_title: "Prázdninové obdobia", periods_empty: "Žiadne obdobia. Pridajte prvé nižšie.",
+    no_group_opt: "— bez skupiny —", period_name_ph: "Názov (napr. Letné prázdniny)",
+    add: "+ Pridať", save: "Uložiť",
+    enter_group_name: "Zadajte názov skupiny.", enter_dates: "Zadajte dátum začiatku a konca.",
+    confirm_del_group: "Zmazať skupinu \"{0}\"? Všetky nastavenia rozvrhu pre túto skupinu budú stratené.",
+    save_error: "Chyba pri ukladaní: ",
+    help_title: "Ako to funguje",
+    help_1: "<strong>Štátne sviatky</strong> sú rozpoznané automaticky podľa nastavenia krajiny v Home Assistant. Nemusíte ich nikde vypisovať. V editore linky stačí nastaviť záložku <em>Štátny sviatok</em>.",
+    help_2: "<strong>Prázdninové obdobia</strong> si definujete ručne v záložke <em>Prázdniny</em>. Zadáte názov (napr. Letné prázdniny) a dátum od–do.",
+    help_3: "<strong>Skupiny rozvrhu</strong> slúžia na zdieľanie jedného cestovného poriadku pre viac období. Ak napr. Letné prázdniny aj Vianoce idú rovnako, vytvorte skupinu <em>Prázdninová prevádzka</em> a obe obdobia do nej priraďte.",
+    help_4: "<strong>Linky</strong> pridáte v záložke <em>Linky</em>. Pri každej linke nastavíte časy pre jednotlivé typy dní pomocou záložiek. Kliknutím na hodinu rozbalíte minúty a kliknutím na minútu ju pridáte alebo odoberiete.",
+    help_5: "<strong>Priorita</strong> pri výbere cestovného poriadku: Štátny sviatok → aktuálne prázdninové obdobie → Sobota/Nedeľa → Pracovný deň. Ak pre dané prázdniny časy nevyplníte, použije sa automaticky pracovný deň.",
+    help_6: "<strong>Uloženie</strong> — po všetkých zmenách kliknite na <em>Uložiť zmeny</em> dole. Senzor sa aktualizuje okamžite.",
+    help_card_title: "Pridanie karty na dashboard",
+    help_card_hint: "Dashboard → upraviť → Pridať kartu → Manuálne → vložiť:",
+    copy: "Kopírovať", copied: "Skopírované ✓", copy_failed: "Nepodarilo sa kopírovať",
+  },
+  en: {
+    title: "Timetables", loading: "Loading…",
+    no_stops: "No stops are configured.",
+    no_stops_hint: "Add a stop in <strong>Settings → Integrations → Timetables</strong>.",
+    help_tooltip: "Help",
+    tab_lines: "Lines", tab_vacation: "Vacations",
+    no_lines: "No lines yet. Add your first line below.",
+    add_line: "+ Add line", save_changes: "Save changes", saving: "Saving…",
+    load_failed: "Failed to load stop data.", edit: "Edit", vac_count: "+ {0} vac.",
+    sched_workday: "Workday", sched_saturday: "Saturday", sched_sunday: "Sunday", sched_holiday: "Public holiday",
+    tt_bus: "Bus", tt_trolleybus: "Trolleybus", tt_tram: "Tram", tt_train: "Train",
+    new_line: "New line", line_word: "Line", train_word: "Train",
+    transport_type: "Transport type",
+    train_category: "Train category (optional)",
+    train_cat_hint: "Trains heading the same direction belong to one line. Use the category to distinguish faster trains from local ones.",
+    train_designation: "Line designation (optional)", train_designation_ph: "e.g. S3, RE5",
+    line_number: "Line number",
+    direction: "Direction (final stop)", route: "Route (stops separated by commas)",
+    custom_stop: "Departs from a different stop", custom_stop_ph: "Stop name (e.g. Central Station)",
+    active_schedules: "Active schedules", vac_tabs_list: "Vacation tabs:",
+    vac_tabs_empty: "Define vacation periods in the <em>Vacations</em> tab.",
+    grid_hint: "Click an hour to expand minutes. Click a minute to add or remove it.",
+    vac_grid_hint: "Timetable for <strong>{0}</strong>. Empty = the workday schedule is used.",
+    add_line_btn: "Add line", save_line: "Save line", back: "← Back",
+    enter_direction: "Enter the direction (final stop).",
+    train_exists: "A train line with this direction and category already exists. Edit it in the line list or pick a different category.",
+    enter_line_number: "Enter the line number.",
+    confirm_del_train: "Delete train{0} to {1}?", confirm_del_line: "Delete line {0}?",
+    vac_intro: "<strong>Public holidays</strong> are detected automatically from your country setting in Home Assistant. Define school and other vacation periods here.",
+    groups_title: "Schedule groups",
+    groups_hint: "Group multiple periods under one timetable. E.g. \"Vacation service\" for both summer and Christmas breaks.",
+    groups_empty: "No groups. Add one below, or leave empty if every period has its own schedule.",
+    group_default: "Group", period_default: "Vacation",
+    group_name_ph: "Group name (e.g. Vacation service)", add_group: "+ Add group",
+    periods_title: "Vacation periods", periods_empty: "No periods. Add the first one below.",
+    no_group_opt: "— no group —", period_name_ph: "Name (e.g. Summer break)",
+    add: "+ Add", save: "Save",
+    enter_group_name: "Enter a group name.", enter_dates: "Enter start and end dates.",
+    confirm_del_group: "Delete group \"{0}\"? All schedule settings for this group will be lost.",
+    save_error: "Error while saving: ",
+    help_title: "How it works",
+    help_1: "<strong>Public holidays</strong> are detected automatically from the country setting in Home Assistant. You do not need to list them. Just configure the <em>Public holiday</em> tab in the line editor.",
+    help_2: "<strong>Vacation periods</strong> are defined manually in the <em>Vacations</em> tab. Enter a name (e.g. Summer break) and a from–to date.",
+    help_3: "<strong>Schedule groups</strong> share one timetable across multiple periods. If e.g. summer and Christmas run the same, create a group <em>Vacation service</em> and assign both periods to it.",
+    help_4: "<strong>Lines</strong> are added in the <em>Lines</em> tab. For each line set the times per day type using the tabs. Click an hour to expand minutes, click a minute to add or remove it.",
+    help_5: "<strong>Priority</strong> when picking the timetable: Public holiday → current vacation period → Saturday/Sunday → Workday. If you leave a vacation empty, the workday schedule is used.",
+    help_6: "<strong>Saving</strong> — after all changes click <em>Save changes</em> at the bottom. The sensor updates immediately.",
+    help_card_title: "Adding the card to a dashboard",
+    help_card_hint: "Dashboard → edit → Add card → Manual → paste:",
+    copy: "Copy", copied: "Copied ✓", copy_failed: "Copy failed",
+  },
+  de: {
+    title: "Fahrpläne", loading: "Wird geladen…",
+    no_stops: "Keine Haltestellen konfiguriert.",
+    no_stops_hint: "Fügen Sie eine Haltestelle unter <strong>Einstellungen → Integrationen → Fahrpläne</strong> hinzu.",
+    help_tooltip: "Hilfe",
+    tab_lines: "Linien", tab_vacation: "Ferien",
+    no_lines: "Noch keine Linien. Fügen Sie unten die erste Linie hinzu.",
+    add_line: "+ Linie hinzufügen", save_changes: "Änderungen speichern", saving: "Wird gespeichert…",
+    load_failed: "Daten der Haltestelle konnten nicht geladen werden.", edit: "Bearbeiten", vac_count: "+ {0} Ferien",
+    sched_workday: "Werktag", sched_saturday: "Samstag", sched_sunday: "Sonntag", sched_holiday: "Feiertag",
+    tt_bus: "Bus", tt_trolleybus: "O-Bus", tt_tram: "Straßenbahn", tt_train: "Zug",
+    new_line: "Neue Linie", line_word: "Linie", train_word: "Zug",
+    transport_type: "Verkehrsmittel",
+    train_category: "Zuggattung (optional)",
+    train_cat_hint: "Züge in dieselbe Richtung gehören zu einer Linie. Mit der Gattung unterscheiden Sie schnellere Züge von Regionalzügen.",
+    train_designation: "Linienbezeichnung (optional)", train_designation_ph: "z. B. S3, RE5, RB27",
+    line_number: "Liniennummer",
+    direction: "Richtung (Endhaltestelle)", route: "Strecke (Haltestellen durch Komma getrennt)",
+    custom_stop: "Fährt von einer anderen Haltestelle", custom_stop_ph: "Name der Haltestelle (z. B. Hauptbahnhof)",
+    active_schedules: "Aktive Fahrpläne", vac_tabs_list: "Ferien-Tabs:",
+    vac_tabs_empty: "Ferienzeiten definieren Sie im Tab <em>Ferien</em>.",
+    grid_hint: "Klicken Sie auf eine Stunde, um die Minuten aufzuklappen. Klicken Sie auf eine Minute, um sie hinzuzufügen oder zu entfernen.",
+    vac_grid_hint: "Fahrplan für <strong>{0}</strong>. Leer = der Werktagsfahrplan wird verwendet.",
+    add_line_btn: "Linie hinzufügen", save_line: "Linie speichern", back: "← Zurück",
+    enter_direction: "Geben Sie die Richtung (Endhaltestelle) ein.",
+    train_exists: "Eine Zuglinie mit dieser Richtung und Gattung existiert bereits. Bearbeiten Sie sie in der Linienliste oder wählen Sie eine andere Gattung.",
+    enter_line_number: "Geben Sie die Liniennummer ein.",
+    confirm_del_train: "Zug{0} Richtung {1} löschen?", confirm_del_line: "Linie {0} löschen?",
+    vac_intro: "<strong>Feiertage</strong> werden automatisch anhand der Ländereinstellung in Home Assistant erkannt. Definieren Sie hier Schulferien und andere Ferienzeiten.",
+    groups_title: "Fahrplangruppen",
+    groups_hint: "Fassen Sie mehrere Zeiträume unter einem Fahrplan zusammen, z. B. \"Ferienbetrieb\" für Sommer- und Weihnachtsferien.",
+    groups_empty: "Keine Gruppen. Unten hinzufügen oder leer lassen, wenn jeder Zeitraum einen eigenen Fahrplan hat.",
+    group_default: "Gruppe", period_default: "Ferien",
+    group_name_ph: "Gruppenname (z. B. Ferienbetrieb)", add_group: "+ Gruppe hinzufügen",
+    periods_title: "Ferienzeiten", periods_empty: "Keine Zeiträume. Fügen Sie unten den ersten hinzu.",
+    no_group_opt: "— ohne Gruppe —", period_name_ph: "Name (z. B. Sommerferien)",
+    add: "+ Hinzufügen", save: "Speichern",
+    enter_group_name: "Geben Sie einen Gruppennamen ein.", enter_dates: "Geben Sie Start- und Enddatum ein.",
+    confirm_del_group: "Gruppe \"{0}\" löschen? Alle Fahrplaneinstellungen dieser Gruppe gehen verloren.",
+    save_error: "Fehler beim Speichern: ",
+    help_title: "So funktioniert es",
+    help_1: "<strong>Feiertage</strong> werden automatisch anhand der Ländereinstellung in Home Assistant erkannt. Sie müssen sie nirgends eintragen. Konfigurieren Sie im Linieneditor einfach den Tab <em>Feiertag</em>.",
+    help_2: "<strong>Ferienzeiten</strong> definieren Sie manuell im Tab <em>Ferien</em>. Geben Sie einen Namen (z. B. Sommerferien) und ein Von–Bis-Datum ein.",
+    help_3: "<strong>Fahrplangruppen</strong> teilen einen Fahrplan über mehrere Zeiträume. Wenn z. B. Sommer- und Weihnachtsferien gleich verkehren, erstellen Sie eine Gruppe <em>Ferienbetrieb</em> und weisen Sie beide Zeiträume zu.",
+    help_4: "<strong>Linien</strong> fügen Sie im Tab <em>Linien</em> hinzu. Für jede Linie stellen Sie die Zeiten pro Tagestyp über die Tabs ein. Klicken Sie auf eine Stunde, um die Minuten aufzuklappen.",
+    help_5: "<strong>Priorität</strong> bei der Fahrplanwahl: Feiertag → aktuelle Ferienzeit → Samstag/Sonntag → Werktag. Bleibt eine Ferienzeit leer, wird der Werktagsfahrplan verwendet.",
+    help_6: "<strong>Speichern</strong> — klicken Sie nach allen Änderungen unten auf <em>Änderungen speichern</em>. Der Sensor aktualisiert sich sofort.",
+    help_card_title: "Karte zum Dashboard hinzufügen",
+    help_card_hint: "Dashboard → bearbeiten → Karte hinzufügen → Manuell → einfügen:",
+    copy: "Kopieren", copied: "Kopiert ✓", copy_failed: "Kopieren fehlgeschlagen",
+  },
+  fr: {
+    title: "Horaires", loading: "Chargement…",
+    no_stops: "Aucun arrêt configuré.",
+    no_stops_hint: "Ajoutez un arrêt dans <strong>Paramètres → Intégrations → Horaires</strong>.",
+    help_tooltip: "Aide",
+    tab_lines: "Lignes", tab_vacation: "Vacances",
+    no_lines: "Aucune ligne pour l'instant. Ajoutez la première ligne ci-dessous.",
+    add_line: "+ Ajouter une ligne", save_changes: "Enregistrer les modifications", saving: "Enregistrement…",
+    load_failed: "Impossible de charger les données de l'arrêt.", edit: "Modifier", vac_count: "+ {0} vac.",
+    sched_workday: "Jour ouvré", sched_saturday: "Samedi", sched_sunday: "Dimanche", sched_holiday: "Jour férié",
+    tt_bus: "Bus", tt_trolleybus: "Trolleybus", tt_tram: "Tramway", tt_train: "Train",
+    new_line: "Nouvelle ligne", line_word: "Ligne", train_word: "Train",
+    transport_type: "Type de transport",
+    train_category: "Catégorie de train (facultatif)",
+    train_cat_hint: "Les trains dans la même direction appartiennent à une seule ligne. La catégorie distingue les trains rapides des omnibus.",
+    train_designation: "Désignation de la ligne (facultatif)", train_designation_ph: "p. ex. RER A, ligne H",
+    line_number: "Numéro de ligne",
+    direction: "Direction (terminus)", route: "Itinéraire (arrêts séparés par des virgules)",
+    custom_stop: "Part d'un autre arrêt", custom_stop_ph: "Nom de l'arrêt (p. ex. Gare centrale)",
+    active_schedules: "Horaires actifs", vac_tabs_list: "Onglets vacances :",
+    vac_tabs_empty: "Définissez les périodes de vacances dans l'onglet <em>Vacances</em>.",
+    grid_hint: "Cliquez sur une heure pour déplier les minutes. Cliquez sur une minute pour l'ajouter ou la retirer.",
+    vac_grid_hint: "Horaire pour <strong>{0}</strong>. Vide = l'horaire de jour ouvré est utilisé.",
+    add_line_btn: "Ajouter la ligne", save_line: "Enregistrer la ligne", back: "← Retour",
+    enter_direction: "Saisissez la direction (terminus).",
+    train_exists: "Une ligne de train avec cette direction et cette catégorie existe déjà. Modifiez-la dans la liste ou choisissez une autre catégorie.",
+    enter_line_number: "Saisissez le numéro de ligne.",
+    confirm_del_train: "Supprimer le train{0} direction {1} ?", confirm_del_line: "Supprimer la ligne {0} ?",
+    vac_intro: "<strong>Les jours fériés</strong> sont détectés automatiquement selon le pays configuré dans Home Assistant. Définissez ici les vacances scolaires et autres périodes.",
+    groups_title: "Groupes d'horaires",
+    groups_hint: "Regroupez plusieurs périodes sous un même horaire, p. ex. \"Service vacances\" pour l'été et Noël.",
+    groups_empty: "Aucun groupe. Ajoutez-en un ci-dessous, ou laissez vide si chaque période a son propre horaire.",
+    group_default: "Groupe", period_default: "Vacances",
+    group_name_ph: "Nom du groupe (p. ex. Service vacances)", add_group: "+ Ajouter un groupe",
+    periods_title: "Périodes de vacances", periods_empty: "Aucune période. Ajoutez la première ci-dessous.",
+    no_group_opt: "— sans groupe —", period_name_ph: "Nom (p. ex. Vacances d'été)",
+    add: "+ Ajouter", save: "Enregistrer",
+    enter_group_name: "Saisissez un nom de groupe.", enter_dates: "Saisissez les dates de début et de fin.",
+    confirm_del_group: "Supprimer le groupe \"{0}\" ? Tous les réglages d'horaire de ce groupe seront perdus.",
+    save_error: "Erreur lors de l'enregistrement : ",
+    help_title: "Comment ça marche",
+    help_1: "<strong>Les jours fériés</strong> sont détectés automatiquement selon le pays configuré dans Home Assistant. Vous n'avez rien à saisir. Configurez simplement l'onglet <em>Jour férié</em> dans l'éditeur de ligne.",
+    help_2: "<strong>Les périodes de vacances</strong> se définissent manuellement dans l'onglet <em>Vacances</em>. Saisissez un nom (p. ex. Vacances d'été) et des dates de début et fin.",
+    help_3: "<strong>Les groupes d'horaires</strong> partagent un horaire entre plusieurs périodes. Si p. ex. l'été et Noël circulent pareil, créez un groupe <em>Service vacances</em> et affectez-y les deux périodes.",
+    help_4: "<strong>Les lignes</strong> s'ajoutent dans l'onglet <em>Lignes</em>. Pour chaque ligne, réglez les heures par type de jour via les onglets. Cliquez sur une heure pour déplier les minutes.",
+    help_5: "<strong>Priorité</strong> du choix de l'horaire : Jour férié → période de vacances en cours → Samedi/Dimanche → Jour ouvré. Si une période reste vide, l'horaire de jour ouvré est utilisé.",
+    help_6: "<strong>Enregistrement</strong> — après vos modifications, cliquez sur <em>Enregistrer les modifications</em> en bas. Le capteur se met à jour immédiatement.",
+    help_card_title: "Ajouter la carte au tableau de bord",
+    help_card_hint: "Tableau de bord → modifier → Ajouter une carte → Manuel → coller :",
+    copy: "Copier", copied: "Copié ✓", copy_failed: "Échec de la copie",
+  },
+  es: {
+    title: "Horarios", loading: "Cargando…",
+    no_stops: "No hay paradas configuradas.",
+    no_stops_hint: "Añada una parada en <strong>Ajustes → Integraciones → Horarios</strong>.",
+    help_tooltip: "Ayuda",
+    tab_lines: "Líneas", tab_vacation: "Vacaciones",
+    no_lines: "Aún no hay líneas. Añada la primera línea abajo.",
+    add_line: "+ Añadir línea", save_changes: "Guardar cambios", saving: "Guardando…",
+    load_failed: "No se pudieron cargar los datos de la parada.", edit: "Editar", vac_count: "+ {0} vac.",
+    sched_workday: "Día laborable", sched_saturday: "Sábado", sched_sunday: "Domingo", sched_holiday: "Festivo",
+    tt_bus: "Autobús", tt_trolleybus: "Trolebús", tt_tram: "Tranvía", tt_train: "Tren",
+    new_line: "Nueva línea", line_word: "Línea", train_word: "Tren",
+    transport_type: "Tipo de transporte",
+    train_category: "Categoría del tren (opcional)",
+    train_cat_hint: "Los trenes en la misma dirección pertenecen a una sola línea. La categoría distingue los trenes rápidos de los regionales.",
+    train_designation: "Designación de la línea (opcional)", train_designation_ph: "p. ej. C1, C4",
+    line_number: "Número de línea",
+    direction: "Dirección (parada final)", route: "Recorrido (paradas separadas por comas)",
+    custom_stop: "Sale de otra parada", custom_stop_ph: "Nombre de la parada (p. ej. Estación Central)",
+    active_schedules: "Horarios activos", vac_tabs_list: "Pestañas de vacaciones:",
+    vac_tabs_empty: "Defina los periodos de vacaciones en la pestaña <em>Vacaciones</em>.",
+    grid_hint: "Haga clic en una hora para desplegar los minutos. Haga clic en un minuto para añadirlo o quitarlo.",
+    vac_grid_hint: "Horario para <strong>{0}</strong>. Vacío = se usa el horario laborable.",
+    add_line_btn: "Añadir línea", save_line: "Guardar línea", back: "← Atrás",
+    enter_direction: "Introduzca la dirección (parada final).",
+    train_exists: "Ya existe una línea de tren con esta dirección y categoría. Edítela en la lista o elija otra categoría.",
+    enter_line_number: "Introduzca el número de línea.",
+    confirm_del_train: "¿Eliminar el tren{0} dirección {1}?", confirm_del_line: "¿Eliminar la línea {0}?",
+    vac_intro: "<strong>Los festivos</strong> se detectan automáticamente según el país configurado en Home Assistant. Defina aquí las vacaciones escolares y otros periodos.",
+    groups_title: "Grupos de horarios",
+    groups_hint: "Agrupe varios periodos bajo un mismo horario, p. ej. \"Servicio de vacaciones\" para verano y Navidad.",
+    groups_empty: "No hay grupos. Añada uno abajo o déjelo vacío si cada periodo tiene su propio horario.",
+    group_default: "Grupo", period_default: "Vacaciones",
+    group_name_ph: "Nombre del grupo (p. ej. Servicio de vacaciones)", add_group: "+ Añadir grupo",
+    periods_title: "Periodos de vacaciones", periods_empty: "No hay periodos. Añada el primero abajo.",
+    no_group_opt: "— sin grupo —", period_name_ph: "Nombre (p. ej. Vacaciones de verano)",
+    add: "+ Añadir", save: "Guardar",
+    enter_group_name: "Introduzca un nombre de grupo.", enter_dates: "Introduzca las fechas de inicio y fin.",
+    confirm_del_group: "¿Eliminar el grupo \"{0}\"? Se perderán todos los ajustes de horario de este grupo.",
+    save_error: "Error al guardar: ",
+    help_title: "Cómo funciona",
+    help_1: "<strong>Los festivos</strong> se detectan automáticamente según el país configurado en Home Assistant. No necesita introducirlos. Configure simplemente la pestaña <em>Festivo</em> en el editor de línea.",
+    help_2: "<strong>Los periodos de vacaciones</strong> se definen manualmente en la pestaña <em>Vacaciones</em>. Introduzca un nombre (p. ej. Vacaciones de verano) y fechas de inicio y fin.",
+    help_3: "<strong>Los grupos de horarios</strong> comparten un horario entre varios periodos. Si p. ej. verano y Navidad circulan igual, cree un grupo <em>Servicio de vacaciones</em> y asigne ambos periodos.",
+    help_4: "<strong>Las líneas</strong> se añaden en la pestaña <em>Líneas</em>. Para cada línea configure las horas por tipo de día mediante las pestañas. Haga clic en una hora para desplegar los minutos.",
+    help_5: "<strong>Prioridad</strong> al elegir el horario: Festivo → periodo de vacaciones actual → Sábado/Domingo → Día laborable. Si deja un periodo vacío, se usa el horario laborable.",
+    help_6: "<strong>Guardar</strong> — tras todos los cambios haga clic en <em>Guardar cambios</em> abajo. El sensor se actualiza inmediatamente.",
+    help_card_title: "Añadir la tarjeta al panel",
+    help_card_hint: "Panel → editar → Añadir tarjeta → Manual → pegar:",
+    copy: "Copiar", copied: "Copiado ✓", copy_failed: "Error al copiar",
+  },
+};
 
 class MHDTimetablePanel extends HTMLElement {
   constructor() {
@@ -90,6 +404,23 @@ class MHDTimetablePanel extends HTMLElement {
     return "vp_" + Math.random().toString(36).slice(2, 7);
   }
 
+  _lang() {
+    const l = ((this._hass && (this._hass.language || (this._hass.locale || {}).language)) || "en")
+      .toLowerCase().split("-")[0];
+    return I18N[l] ? l : "en";
+  }
+
+  _t(key) {
+    const lang = this._lang();
+    let s = (I18N[lang] && I18N[lang][key]) ?? I18N.en[key] ?? key;
+    for (let i = 1; i < arguments.length; i++) s = s.replace("{" + (i - 1) + "}", arguments[i]);
+    return s;
+  }
+
+  _schedLabel(t) { return this._t("sched_" + t); }
+  _ttLabel(k)    { return this._t("tt_" + k); }
+  _trainCats()   { return TRAIN_CATEGORIES[this._lang()] || []; }
+
   _schedColor(key) {
     if (key === "workday") return "blue";
     if (key === "saturday" || key === "sunday") return "yellow";
@@ -117,13 +448,13 @@ class MHDTimetablePanel extends HTMLElement {
     // Groups first
     groups.forEach(g => {
       seen.add(g.id);
-      tabs.push({ key: `vacation_${g.id}`, label: g.label || "Skupina" });
+      tabs.push({ key: `vacation_${g.id}`, label: g.label || this._t("group_default") });
     });
     // Ungrouped periods
     periods.forEach(p => {
       if (!p.group_id && !seen.has(p.id)) {
         seen.add(p.id);
-        tabs.push({ key: `vacation_${p.id}`, label: p.label || "Prázdniny" });
+        tabs.push({ key: `vacation_${p.id}`, label: p.label || this._t("period_default") });
       }
     });
     return tabs;
@@ -138,20 +469,20 @@ class MHDTimetablePanel extends HTMLElement {
   }
 
   _html() {
-    if (this._loading) return `<div class="page"><div class="loading">Načítání…</div></div>`;
+    if (this._loading) return `<div class="page"><div class="loading">${this._t("loading")}</div></div>`;
     if (this._entries.length === 0) return `
       <div class="page">
-        <div class="toolbar"><h1>Jízdní řády</h1></div>
+        <div class="toolbar"><h1>${this._t("title")}</h1></div>
         <div class="empty">
-          <p>Žádné zastávky nejsou nakonfigurovány.</p>
-          <p>Přidejte zastávku v <strong>Nastavení → Integrace → Jízdní řády</strong>.</p>
+          <p>${this._t("no_stops")}</p>
+          <p>${this._t("no_stops_hint")}</p>
         </div>
       </div>`;
 
     return `
       <div class="page">
         <div class="toolbar">
-          <h1>Jízdní řády</h1>
+          <h1>${this._t("title")}</h1>
           ${this._entries.length > 1 ? `
             <select class="stop-select">
               ${this._entries.map(e => `
@@ -159,7 +490,7 @@ class MHDTimetablePanel extends HTMLElement {
                   ${e.stop}
                 </option>`).join("")}
             </select>` : `<span class="stop-title">${this._data?.stop || ""}</span>`}
-          <button class="help-btn" title="Nápověda">?</button>
+          <button class="help-btn" title="${this._t("help_tooltip")}">?</button>
         </div>
         ${this._helpVisible ? this._helpHTML() : ""}
         ${this._editorLine !== null ? this._lineEditorHTML() : this._mainEditorHTML()}
@@ -167,111 +498,67 @@ class MHDTimetablePanel extends HTMLElement {
   }
 
   _helpHTML() {
+    const steps = [1, 2, 3, 4, 5, 6].map(n => `
+        <div class="help-section">
+          <div class="help-step">${n}</div>
+          <div>${this._t("help_" + n)}</div>
+        </div>`).join("");
     return `
       <div class="help-box">
-        <div class="help-title">Jak to funguje</div>
-
-        <div class="help-section">
-          <div class="help-step">1</div>
-          <div>
-            <strong>Státní svátky</strong> jsou rozpoznány automaticky
-            podle nastavení země v Home Assistant. Nemusíte je nikde vypisovat.
-            V editoru linky stačí nastavit záložku <em>Státní svátek</em>.
-          </div>
-        </div>
-
-        <div class="help-section">
-          <div class="help-step">2</div>
-          <div>
-            <strong>Prázdninová období</strong> si definujete ručně v záložce
-            <em>Prázdniny</em>. Zadáte název (např. Letní prázdniny) a datum od–do.
-          </div>
-        </div>
-
-        <div class="help-section">
-          <div class="help-step">3</div>
-          <div>
-            <strong>Skupiny rozvrhu</strong> slouží ke sdílení jednoho jízdního řádu
-            pro více období. Pokud např. Letní prázdniny i Vánoce jedou stejně,
-            vytvořte skupinu <em>Prázdninový provoz</em> a obě období do ní přiřaďte.
-            V editoru linky pak nastavíte časy jen jednou.
-            Pokud každé období jede jinak, skupiny nepotřebujete.
-          </div>
-        </div>
-
-        <div class="help-section">
-          <div class="help-step">4</div>
-          <div>
-            <strong>Linky</strong> přidáte v záložce <em>Linky</em>. U každé linky
-            nastavíte časy pro jednotlivé typy dnů pomocí záložek:
-            Pracovní den, Sobota, Neděle, Státní svátek
-            a záložku pro každou skupinu nebo samostatné období.
-            Kliknutím na hodinu rozbalíte minuty a kliknutím na minutu ji přidáte nebo odeberete.
-          </div>
-        </div>
-
-        <div class="help-section">
-          <div class="help-step">5</div>
-          <div>
-            <strong>Priorita</strong> při výběru jízdního řádu:
-            Státní svátek → aktuální prázdninové období → Sobota/Neděle → Pracovní den.
-            Pokud pro dané prázdniny časy nevyplníte, použije se automaticky pracovní den.
-          </div>
-        </div>
-
-        <div class="help-section">
-          <div class="help-step">6</div>
-          <div>
-            <strong>Uložení</strong> — po všech změnách klikněte na
-            <em>Uložit změny</em> dole. Senzor se aktualizuje okamžitě.
-          </div>
-        </div>
-
+        <div class="help-title">${this._t("help_title")}</div>
+        ${steps}
         <div class="help-divider"></div>
-
-        <div class="help-card-title">Přidání karty na dashboard</div>
+        <div class="help-card-title">${this._t("help_card_title")}</div>
         <p style="font-size:0.88em;color:var(--secondary-text-color);margin:0 0 8px">
-          Dashboard → upravit → Přidat kartu → Manuální → vložit:
+          ${this._t("help_card_hint")}
         </p>
         <div class="help-code" id="help-card-yaml">${this._cardYaml()}</div>
-        <button class="help-copy-btn">Kopírovat</button>
+        <button class="help-copy-btn">${this._t("copy")}</button>
       </div>`;
   }
 
   _mainEditorHTML() {
-    if (!this._data) return `<div class="empty">Nepodařilo se načíst data zastávky.</div>`;
+    if (!this._data) return `<div class="empty">${this._t("load_failed")}</div>`;
     const lines = this._data.lines || {};
     const keys = Object.keys(lines);
     return `
       <div class="tabs">
-        <button class="tab ${!this._vacationView ? "active" : ""}" data-view="lines">Linky</button>
-        <button class="tab ${this._vacationView ? "active" : ""}" data-view="vacation">Prázdniny</button>
+        <button class="tab ${!this._vacationView ? "active" : ""}" data-view="lines">${this._t("tab_lines")}</button>
+        <button class="tab ${this._vacationView ? "active" : ""}" data-view="vacation">${this._t("tab_vacation")}</button>
       </div>
       <div class="content">
         ${!this._vacationView ? `
           ${keys.length === 0
-            ? `<p class="hint">Zatím žádné linky. Přidejte první linku tlačítkem níže.</p>`
+            ? `<p class="hint">${this._t("no_lines")}</p>`
             : keys.map(k => this._lineRowHTML(k, lines[k])).join("")}
-          <button class="add-btn">+ Přidat linku</button>
+          <button class="add-btn">${this._t("add_line")}</button>
         ` : this._vacationHTML()}
       </div>
       <div class="footer">
         <button class="save-btn ${this._saving ? "saving" : ""}">
-          ${this._saving ? "Ukládání…" : "Uložit změny"}
+          ${this._saving ? this._t("saving") : this._t("save_changes")}
         </button>
       </div>`;
+  }
+
+  // A train line key is auto-generated unless the user typed a designation (S3, RE5…)
+  _isAutoTrainKey(num) {
+    return num === "train" || String(num).startsWith("train_") || String(num).startsWith("vlak_");
   }
 
   _lineRowHTML(num, data) {
     const types = (data.schedule_types || [])
       .filter(t => BASE_TYPES.includes(t))
-      .map(t => SCHEDULE_LABELS[t] || t).join(", ");
+      .map(t => this._schedLabel(t)).join(", ");
     const vtabs = this._vacationTabs();
     const vacCount = vtabs.filter(vt => data[vt.key] && Object.keys(data[vt.key]).length > 0).length;
-    const vacLabel = vacCount > 0 ? ` + ${vacCount} prázdnin.` : "";
+    const vacLabel = vacCount > 0 ? ` ${this._t("vac_count", vacCount)}` : "";
     const tt = data.transport_type || "bus";
-    const badge = tt === "train" ? "🚂" : tt === "tram" ? "🚋" : tt === "trolleybus" ? "🚎" : num;
-    const tcat = tt === "train" && data.train_category ? `${data.train_category} ` : "";
+    const isTrain = tt === "train";
+    const badge = isTrain
+      ? (this._isAutoTrainKey(num) ? "🚂" : num)
+      : tt === "tram" ? "🚋" : tt === "trolleybus" ? "🚎" : num;
+    const tcat = isTrain && data.train_category ? `${data.train_category} ` : "";
     return `
       <div class="line-row">
         <div class="lr-left">
@@ -282,7 +569,7 @@ class MHDTimetablePanel extends HTMLElement {
           </div>
         </div>
         <div class="lr-actions">
-          <button class="btn-edit" data-line="${num}">Upravit</button>
+          <button class="btn-edit" data-line="${num}">${this._t("edit")}</button>
           <button class="btn-del" data-line="${num}">✕</button>
         </div>
       </div>`;
@@ -293,10 +580,7 @@ class MHDTimetablePanel extends HTMLElement {
   // -------------------------------------------------------------------------
   _vacationHTML() {
     return `
-      <p class="hint">
-        <strong>Státní svátky</strong> jsou rozpoznány automaticky podle nastavení vaší země v Home Assistant.
-        Zde definujte školní a jiná prázdninová období.
-      </p>
+      <p class="hint">${this._t("vac_intro")}</p>
       ${this._groupsSectionHTML()}
       <div class="vac-divider"></div>
       ${this._periodsSectionHTML()}`;
@@ -306,33 +590,33 @@ class MHDTimetablePanel extends HTMLElement {
     const groups = this._vacationGroups();
     const editIdx = this._editingGroupIdx;
     return `
-      <div class="vac-section-title">Skupiny rozvrhu</div>
-      <p class="hint">Seskupte více období pod jeden jízdní řád. Např. "Prázdninový provoz" pro letní i vánoční prázdniny.</p>
+      <div class="vac-section-title">${this._t("groups_title")}</div>
+      <p class="hint">${this._t("groups_hint")}</p>
       ${groups.length === 0
-        ? `<p class="hint" style="font-style:italic">Žádné skupiny. Přidejte níže nebo nechte prázdné, pokud každé období má jiný rozvrh.</p>`
+        ? `<p class="hint" style="font-style:italic">${this._t("groups_empty")}</p>`
         : groups.map((g, i) => editIdx === i ? `
           <div class="vac-edit-row">
             <input class="grp-edit-label" value="${g.label || ""}">
-            <button class="grp-edit-save" data-idx="${i}">Uložit</button>
+            <button class="grp-edit-save" data-idx="${i}">${this._t("save")}</button>
             <button class="grp-edit-cancel">✕</button>
           </div>` : `
           <div class="vac-row">
             <span class="grp-icon">🗂</span>
-            <span class="vac-name">${g.label || "Skupina"}</span>
+            <span class="vac-name">${g.label || this._t("group_default")}</span>
             <span class="vac-dates">${this._periodsInGroup(g.id).join(", ") || "—"}</span>
-            <button class="grp-edit-btn" data-idx="${i}">Upravit</button>
+            <button class="grp-edit-btn" data-idx="${i}">${this._t("edit")}</button>
             <button class="grp-del" data-idx="${i}">✕</button>
           </div>`).join("")}
       <div class="vac-form">
-        <input class="grp-label" placeholder="Název skupiny (např. Prázdninový provoz)">
-        <button class="grp-add">+ Přidat skupinu</button>
+        <input class="grp-label" placeholder="${this._t("group_name_ph")}">
+        <button class="grp-add">${this._t("add_group")}</button>
       </div>`;
   }
 
   _periodsInGroup(groupId) {
     return this._vacationPeriods()
       .filter(p => p.group_id === groupId)
-      .map(p => p.label || "Prázdniny");
+      .map(p => p.label || this._t("period_default"));
   }
 
   _periodsSectionHTML() {
@@ -341,14 +625,14 @@ class MHDTimetablePanel extends HTMLElement {
     const editIdx = this._editingVacIdx;
 
     const groupOptions = (selected) => [
-      `<option value="" ${!selected ? "selected" : ""}>— bez skupiny —</option>`,
-      ...groups.map(g => `<option value="${g.id}" ${selected === g.id ? "selected" : ""}>${g.label || "Skupina"}</option>`),
+      `<option value="" ${!selected ? "selected" : ""}>${this._t("no_group_opt")}</option>`,
+      ...groups.map(g => `<option value="${g.id}" ${selected === g.id ? "selected" : ""}>${g.label || this._t("group_default")}</option>`),
     ].join("");
 
     return `
-      <div class="vac-section-title">Prázdninová období</div>
+      <div class="vac-section-title">${this._t("periods_title")}</div>
       ${periods.length === 0
-        ? `<p class="hint" style="font-style:italic">Žádná období. Přidejte první níže.</p>`
+        ? `<p class="hint" style="font-style:italic">${this._t("periods_empty")}</p>`
         : periods.map((p, i) => {
             const groupLabel = groups.find(g => g.id === p.group_id)?.label || "";
             return editIdx === i ? `
@@ -358,24 +642,24 @@ class MHDTimetablePanel extends HTMLElement {
                 <span>–</span>
                 <input class="vac-edit-end" type="date" value="${p.end}">
                 <select class="vac-edit-group">${groupOptions(p.group_id)}</select>
-                <button class="vac-edit-save" data-idx="${i}">Uložit</button>
+                <button class="vac-edit-save" data-idx="${i}">${this._t("save")}</button>
                 <button class="vac-edit-cancel">✕</button>
               </div>` : `
               <div class="vac-row">
-                <span class="vac-name">${p.label || "Prázdniny"}</span>
+                <span class="vac-name">${p.label || this._t("period_default")}</span>
                 <span class="vac-dates">${p.start} – ${p.end}</span>
                 ${groupLabel ? `<span class="vac-group-badge">${groupLabel}</span>` : ""}
-                <button class="vac-edit-btn" data-idx="${i}">Upravit</button>
+                <button class="vac-edit-btn" data-idx="${i}">${this._t("edit")}</button>
                 <button class="vac-del" data-idx="${i}">✕</button>
               </div>`;
           }).join("")}
       <div class="vac-form">
-        <input class="vac-label" placeholder="Název (např. Letní prázdniny)">
+        <input class="vac-label" placeholder="${this._t("period_name_ph")}">
         <input class="vac-start" type="date">
         <span>–</span>
         <input class="vac-end" type="date">
         ${groups.length > 0 ? `<select class="vac-new-group">${groupOptions("")}</select>` : ""}
-        <button class="vac-add">+ Přidat</button>
+        <button class="vac-add">${this._t("add")}</button>
       </div>`;
   }
 
@@ -390,7 +674,7 @@ class MHDTimetablePanel extends HTMLElement {
     const vacTabs = this._vacationTabs();
 
     const allTabs = [
-      ...types.map(t => ({ key: t, label: SCHEDULE_LABELS[t], vacation: false })),
+      ...types.map(t => ({ key: t, label: this._schedLabel(t), vacation: false })),
       ...vacTabs.map(t => ({ ...t, vacation: true })),
     ];
 
@@ -400,65 +684,82 @@ class MHDTimetablePanel extends HTMLElement {
     const customStop = ld.custom_stop || "";
     const isTrain = ttype === "train";
     const tcat = ld.train_category || "";
+    const cats = this._trainCats();
+    const isAuto = isNew || this._isAutoTrainKey(this._editorLine);
+
+    const header = isNew
+      ? this._t("new_line")
+      : isTrain
+        ? (isAuto
+            ? `${this._t("train_word")}${tcat ? " " + tcat : ""}${ld.direction ? " → " + ld.direction : ""}`
+            : `${this._editorLine}${ld.direction ? " → " + ld.direction : ""}`)
+        : `${this._t("line_word")} ${this._editorLine}`;
 
     return `
       <div class="le-header">
-        <button class="back-btn">← Zpět</button>
-        <h2>${isNew ? "Nová linka" : isTrain ? `Vlak${tcat ? " " + tcat : ""}${ld.direction ? " → " + ld.direction : ""}` : `Linka ${this._editorLine}`}</h2>
+        <button class="back-btn">${this._t("back")}</button>
+        <h2>${header}</h2>
       </div>
       <div class="le-fields">
         <div class="field">
-          <label>Typ dopravy</label>
+          <label>${this._t("transport_type")}</label>
           <div class="ttype-chips">
-            ${TRANSPORT_TYPES.map(t => `
+            ${TRANSPORT_META.map(t => `
               <button class="ttype-chip ${t.key === ttype ? "active" : ""}" data-type="${t.key}"
                       style="--tc:${t.color}">
-                ${t.icon} ${t.label}
+                ${t.icon} ${this._ttLabel(t.key)}
               </button>`).join("")}
           </div>
         </div>
         ${isTrain ? `
+        ${cats.length > 0 ? `
         <div class="field">
-          <label>Kategorie vlaku (nepovinné)</label>
+          <label>${this._t("train_category")}</label>
           <div class="ttype-chips">
-            <button class="tcat-chip ${tcat === "R" ? "active" : ""}" data-cat="R" style="--tc:#d32f2f">R – rychlík</button>
-            <button class="tcat-chip ${tcat === "Sp" ? "active" : ""}" data-cat="Sp" style="--tc:#7b1fa2">Sp – spěšný vlak</button>
+            ${cats.map((c, i) => `
+              <button class="tcat-chip ${tcat === c.v ? "active" : ""}" data-cat="${c.v}"
+                      style="--tc:${TCAT_COLORS[i % TCAT_COLORS.length]}">${c.l}</button>`).join("")}
           </div>
-          <p class="hint" style="margin-top:6px">Vlaky stejným směrem patří do jedné linky. Kategorií rozlišíte rychlík/spěšný od osobních vlaků.</p>
+          <p class="hint" style="margin-top:6px">${this._t("train_cat_hint")}</p>
+        </div>` : ""}
+        <div class="field">
+          <label>${this._t("train_designation")}</label>
+          <input id="le-num" value="${isNew ? this._newLineNum : (isAuto ? "" : this._editorLine)}"
+                 placeholder="${this._t("train_designation_ph")}" ${isNew ? "" : "readonly"}>
         </div>` : `
         <div class="field">
-          <label>Číslo linky</label>
+          <label>${this._t("line_number")}</label>
           <input id="le-num" value="${isNew ? this._newLineNum : this._editorLine}" ${isNew ? "" : "readonly"}>
         </div>`}
         <div class="field">
-          <label>Směr (cílová zastávka)</label>
+          <label>${this._t("direction")}</label>
           <input id="le-dir" value="${ld.direction || ""}">
         </div>
         <div class="field">
-          <label>Trasa (zastávky oddělené čárkou)</label>
+          <label>${this._t("route")}</label>
           <textarea id="le-route" rows="2">${ld.route || ""}</textarea>
         </div>
         <div class="field">
           <label class="type-chip ${customStop ? "on" : ""}" id="le-cs-label">
             <input type="checkbox" id="le-cs-cb" ${customStop ? "checked" : ""}>
-            Jede z jiné zastávky
+            ${this._t("custom_stop")}
           </label>
           <input id="le-cs-inp" type="text" value="${customStop}"
-                 placeholder="Název zastávky (např. Hlavní nádraží)"
+                 placeholder="${this._t("custom_stop_ph")}"
                  style="${customStop ? "" : "display:none"}; margin-top:6px">
         </div>
         <div class="field">
-          <label>Aktivní rozvrhy</label>
+          <label>${this._t("active_schedules")}</label>
           <div class="type-checks">
             ${BASE_TYPES.map(t => `
               <label class="type-chip ${types.includes(t) ? "on" : ""}">
                 <input type="checkbox" class="type-cb" value="${t}" ${types.includes(t) ? "checked" : ""}>
-                ${SCHEDULE_LABELS[t]}
+                ${this._schedLabel(t)}
               </label>`).join("")}
           </div>
           ${vacTabs.length > 0
-            ? `<p class="hint" style="margin-top:8px">Prázdninové záložky: <strong>${vacTabs.map(t => t.label).join(", ")}</strong></p>`
-            : `<p class="hint" style="margin-top:8px">Prázdninová období definujte v záložce <em>Prázdniny</em>.</p>`}
+            ? `<p class="hint" style="margin-top:8px">${this._t("vac_tabs_list")} <strong>${vacTabs.map(t => t.label).join(", ")}</strong></p>`
+            : `<p class="hint" style="margin-top:8px">${this._t("vac_tabs_empty")}</p>`}
         </div>
       </div>
       <div class="sched-tabs">
@@ -470,13 +771,13 @@ class MHDTimetablePanel extends HTMLElement {
       <div class="time-grid-wrap">
         <p class="hint">
           ${tab.startsWith("vacation_")
-            ? `Jízdní řád pro <strong>${currentTabLabel}</strong>. Prázdné = použije se pracovní den.`
-            : "Kliknutím na hodinu rozbalíte minuty. Kliknutím na minutu ji přidáte nebo odeberete."}
+            ? this._t("vac_grid_hint", currentTabLabel)
+            : this._t("grid_hint")}
         </p>
         <div class="time-grid">${this._timeGridHTML(ld, tab, allTabs.map(t => t.key))}</div>
       </div>
       <div class="footer">
-        <button class="line-save-btn">${isNew ? "Přidat linku" : "Uložit linku"}</button>
+        <button class="line-save-btn">${isNew ? this._t("add_line_btn") : this._t("save_line")}</button>
       </div>`;
   }
 
@@ -538,6 +839,10 @@ class MHDTimetablePanel extends HTMLElement {
       const text = root.querySelector("#help-card-yaml")?.textContent?.trim();
       if (!text) return;
       const btn = e.currentTarget;
+      const _done = ok => {
+        btn.textContent = ok ? this._t("copied") : this._t("copy_failed");
+        setTimeout(() => { btn.textContent = this._t("copy"); }, 2000);
+      };
       const _fallback = () => {
         const ta = document.createElement("textarea");
         ta.style.cssText = "position:fixed;top:-9999px;left:-9999px;opacity:0";
@@ -547,19 +852,14 @@ class MHDTimetablePanel extends HTMLElement {
         ta.select();
         try {
           document.execCommand("copy");
-          btn.textContent = "Zkopírováno ✓";
-          setTimeout(() => { btn.textContent = "Kopírovat"; }, 2000);
+          _done(true);
         } catch (_) {
-          btn.textContent = "Nepodařilo se kopírovat";
-          setTimeout(() => { btn.textContent = "Kopírovat"; }, 2000);
+          _done(false);
         }
         document.body.removeChild(ta);
       };
       if (navigator.clipboard) {
-        navigator.clipboard.writeText(text).then(() => {
-          btn.textContent = "Zkopírováno ✓";
-          setTimeout(() => { btn.textContent = "Kopírovat"; }, 2000);
-        }).catch(_fallback);
+        navigator.clipboard.writeText(text).then(() => _done(true)).catch(_fallback);
       } else {
         _fallback();
       }
@@ -595,10 +895,10 @@ class MHDTimetablePanel extends HTMLElement {
     root.querySelectorAll(".btn-del").forEach(btn => {
       btn.addEventListener("click", () => {
         const ld = this._data.lines[btn.dataset.line] || {};
-        const label = ld.transport_type === "train"
-          ? `vlak${ld.train_category ? " " + ld.train_category : ""} směr ${ld.direction || "?"}`
-          : `linku ${btn.dataset.line}`;
-        if (!confirm(`Smazat ${label}?`)) return;
+        const msg = ld.transport_type === "train"
+          ? this._t("confirm_del_train", ld.train_category ? " " + ld.train_category : "", ld.direction || "?")
+          : this._t("confirm_del_line", btn.dataset.line);
+        if (!confirm(msg)) return;
         delete this._data.lines[btn.dataset.line];
         this._render();
       });
@@ -627,7 +927,7 @@ class MHDTimetablePanel extends HTMLElement {
     root.querySelector(".grp-edit-save")?.addEventListener("click", () => {
       const idx = this._editingGroupIdx;
       const label = root.querySelector(".grp-edit-label")?.value.trim();
-      if (!label) { alert("Zadejte název skupiny."); return; }
+      if (!label) { alert(this._t("enter_group_name")); return; }
       this._data.vacation_groups[idx].label = label;
       this._editingGroupIdx = null;
       this._render();
@@ -636,7 +936,7 @@ class MHDTimetablePanel extends HTMLElement {
       btn.addEventListener("click", () => {
         const idx = parseInt(btn.dataset.idx);
         const removed = this._data.vacation_groups[idx];
-        if (!confirm(`Smazat skupinu "${removed.label}"? Všechna nastavení rozvrhu pro tuto skupinu budou ztracena.`)) return;
+        if (!confirm(this._t("confirm_del_group", removed.label))) return;
         this._data.vacation_groups.splice(idx, 1);
         // Clear group assignment from periods
         this._data.vacation_periods.forEach(p => {
@@ -650,7 +950,7 @@ class MHDTimetablePanel extends HTMLElement {
     });
     root.querySelector(".grp-add")?.addEventListener("click", () => {
       const label = root.querySelector(".grp-label")?.value.trim();
-      if (!label) { alert("Zadejte název skupiny."); return; }
+      if (!label) { alert(this._t("enter_group_name")); return; }
       if (!this._data.vacation_groups) this._data.vacation_groups = [];
       this._data.vacation_groups.push({ id: this._genId(), label });
       root.querySelector(".grp-label").value = "";
@@ -674,9 +974,9 @@ class MHDTimetablePanel extends HTMLElement {
       const start    = root.querySelector(".vac-edit-start")?.value;
       const end      = root.querySelector(".vac-edit-end")?.value;
       const groupId  = root.querySelector(".vac-edit-group")?.value || "";
-      if (!start || !end) { alert("Zadejte datum začátku a konce."); return; }
+      if (!start || !end) { alert(this._t("enter_dates")); return; }
       const p = this._data.vacation_periods[idx];
-      p.label = label || "Prázdniny";
+      p.label = label || this._t("period_default");
       p.start = start;
       p.end   = end;
       if (groupId) p.group_id = groupId; else delete p.group_id;
@@ -701,9 +1001,9 @@ class MHDTimetablePanel extends HTMLElement {
       const start   = root.querySelector(".vac-start")?.value;
       const end     = root.querySelector(".vac-end")?.value;
       const groupId = root.querySelector(".vac-new-group")?.value || "";
-      if (!start || !end) { alert("Zadejte datum začátku a konce."); return; }
+      if (!start || !end) { alert(this._t("enter_dates")); return; }
       if (!this._data.vacation_periods) this._data.vacation_periods = [];
-      const entry = { id: this._genId(), label: label || "Prázdniny", start, end };
+      const entry = { id: this._genId(), label: label || this._t("period_default"), start, end };
       if (groupId) entry.group_id = groupId;
       this._data.vacation_periods.push(entry);
       this._render();
@@ -807,15 +1107,17 @@ class MHDTimetablePanel extends HTMLElement {
       if (!isNew) {
         num = this._editorLine;
       } else if ((ld.transport_type || "bus") === "train") {
-        if (!(ld.direction || "").trim()) { alert("Zadejte směr (cílovou zastávku)."); return; }
-        num = this._trainKey(ld.direction, ld.train_category || "");
+        if (!(ld.direction || "").trim()) { alert(this._t("enter_direction")); return; }
+        // Optional designation (S3, RE5…) becomes the key; otherwise direction-based key
+        const designation = root.querySelector("#le-num")?.value?.trim();
+        num = designation || this._trainKey(ld.direction, ld.train_category || "");
         if (this._data.lines[num]) {
-          alert("Vlaková linka tímto směrem a kategorií už existuje. Upravte ji v seznamu linek, nebo zvolte jinou kategorii (R/Sp).");
+          alert(this._t("train_exists"));
           return;
         }
       } else {
         num = root.querySelector("#le-num")?.value?.trim();
-        if (!num) { alert("Zadejte číslo linky."); return; }
+        if (!num) { alert(this._t("enter_line_number")); return; }
       }
 
       this._data.lines[num] = ld;
@@ -896,7 +1198,7 @@ class MHDTimetablePanel extends HTMLElement {
         data: this._data,
       });
     } catch (e) {
-      alert("Chyba při ukládání: " + (e.message || e));
+      alert(this._t("save_error") + (e.message || e));
     }
     this._saving = false;
     this._render();

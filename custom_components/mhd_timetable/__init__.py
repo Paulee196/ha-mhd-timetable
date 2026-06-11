@@ -24,6 +24,79 @@ PLATFORMS = ["sensor"]
 _PANEL_URL = "mhd_timetable"
 _STATIC_PATH = "/mhd_timetable_static"
 
+_PANEL_TITLES = {
+    "cs": "Jízdní řády", "sk": "Cestovné poriadky", "en": "Timetables",
+    "de": "Fahrpläne", "fr": "Horaires", "es": "Horarios",
+}
+
+_NOTIFY_STRINGS = {
+    "cs": {
+        "title": "Jízdní řády – zastávka přidána",
+        "msg": (
+            "Zastávka **{stop}** byla úspěšně nakonfigurována.\n\n"
+            "**Jak přidat spoje:**\n"
+            "Klikněte na ikonu 🚌 **Jízdní řády** v levém postranním panelu.\n\n"
+            "Nebo přidejte kartu do dashboardu:\n"
+            "```yaml\ntype: custom:mhd-timetable-card\nentity: {entity}\n```"
+        ),
+    },
+    "sk": {
+        "title": "Cestovné poriadky – zastávka pridaná",
+        "msg": (
+            "Zastávka **{stop}** bola úspešne nakonfigurovaná.\n\n"
+            "**Ako pridať spoje:**\n"
+            "Kliknite na ikonu 🚌 **Cestovné poriadky** v ľavom bočnom paneli.\n\n"
+            "Alebo pridajte kartu do dashboardu:\n"
+            "```yaml\ntype: custom:mhd-timetable-card\nentity: {entity}\n```"
+        ),
+    },
+    "en": {
+        "title": "Timetables – stop added",
+        "msg": (
+            "Stop **{stop}** was configured successfully.\n\n"
+            "**How to add departures:**\n"
+            "Click the 🚌 **Timetables** icon in the left sidebar.\n\n"
+            "Or add the card to a dashboard:\n"
+            "```yaml\ntype: custom:mhd-timetable-card\nentity: {entity}\n```"
+        ),
+    },
+    "de": {
+        "title": "Fahrpläne – Haltestelle hinzugefügt",
+        "msg": (
+            "Die Haltestelle **{stop}** wurde erfolgreich konfiguriert.\n\n"
+            "**Abfahrten hinzufügen:**\n"
+            "Klicken Sie auf das 🚌 **Fahrpläne**-Symbol in der linken Seitenleiste.\n\n"
+            "Oder fügen Sie die Karte einem Dashboard hinzu:\n"
+            "```yaml\ntype: custom:mhd-timetable-card\nentity: {entity}\n```"
+        ),
+    },
+    "fr": {
+        "title": "Horaires – arrêt ajouté",
+        "msg": (
+            "L'arrêt **{stop}** a été configuré avec succès.\n\n"
+            "**Comment ajouter des départs :**\n"
+            "Cliquez sur l'icône 🚌 **Horaires** dans la barre latérale gauche.\n\n"
+            "Ou ajoutez la carte à un tableau de bord :\n"
+            "```yaml\ntype: custom:mhd-timetable-card\nentity: {entity}\n```"
+        ),
+    },
+    "es": {
+        "title": "Horarios – parada añadida",
+        "msg": (
+            "La parada **{stop}** se configuró correctamente.\n\n"
+            "**Cómo añadir salidas:**\n"
+            "Haga clic en el icono 🚌 **Horarios** en la barra lateral izquierda.\n\n"
+            "O añada la tarjeta a un panel:\n"
+            "```yaml\ntype: custom:mhd-timetable-card\nentity: {entity}\n```"
+        ),
+    },
+}
+
+
+def _ha_lang(hass: HomeAssistant) -> str:
+    lang = (getattr(hass.config, "language", None) or "en").lower().split("-")[0]
+    return lang if lang in _PANEL_TITLES else "en"
+
 def _get_version() -> str:
     try:
         manifest = pathlib.Path(__file__).parent / "manifest.json"
@@ -183,7 +256,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await async_register_panel(
                 hass,
                 webcomponent_name="mhd-timetable-panel",
-                sidebar_title="Jízdní řády",
+                sidebar_title=_PANEL_TITLES[_ha_lang(hass)],
                 sidebar_icon="mdi:bus-clock",
                 frontend_url_path=_PANEL_URL,
                 module_url=_panel_js_url(),
@@ -210,20 +283,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Show setup guidance notification on first install (no lines configured yet)
     if not data.get("lines"):
         from homeassistant.components.persistent_notification import async_create as pn_create
+        notify = _NOTIFY_STRINGS[_ha_lang(hass)]
+        entity_id = f"sensor.mhd_{entry.data['stop_name'].lower().replace(' ', '_')}"
         pn_create(
             hass,
-            title="Jízdní řády – zastávka přidána",
-            message=(
-                f"Zastávka **{entry.data['stop_name']}** byla úspěšně nakonfigurována.\n\n"
-                "**Jak přidat spoje:**\n"
-                "Klikněte na ikonu 🚌 **Jízdní řády** v levém postranním panelu.\n\n"
-                "Nebo přidejte kartu do dashboardu:\n"
-                "```yaml\n"
-                "type: custom:mhd-timetable-card\n"
-                f"entity: sensor.mhd_{entry.data['stop_name'].lower().replace(' ', '_')}\n"
-                "```\n"
-                "a klikněte na ✏️ v kartě."
-            ),
+            title=notify["title"],
+            message=notify["msg"].format(stop=entry.data["stop_name"], entity=entity_id),
             notification_id=f"mhd_timetable_setup_{entry.entry_id}",
         )
 
@@ -285,10 +350,13 @@ def _migrate_data(data: dict) -> bool:
             line_data["transport_type"] = _TT_MIGRATION[tt]
             changed = True
 
-    # Re-key train lines that got a random generated suffix (train_trutnov_mb3xyz…)
+    # Re-key auto-generated train keys (train_trutnov_mb3xyz…) to the deterministic
+    # form. Keys typed by the user as a designation (S3, RE5…) are left untouched.
     for key in list(lines.keys()):
         line_data = lines[key]
         if line_data.get("transport_type") != "train":
+            continue
+        if key != "train" and not key.startswith(("train_", "vlak_")):
             continue
         target = _train_key(
             line_data.get("direction", ""),

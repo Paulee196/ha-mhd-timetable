@@ -1,0 +1,28 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ajouter un arrêt",
+        "data": {
+          "stop_name": "Nom de l'arrêt",
+          "output_path": "Chemin du fichier JSON de sortie"
+        },
+        "description": "Saisissez le nom de l'arrêt et, facultativement, un chemin pour exporter l'horaire en JSON (p. ex. /config/www/horaires/mon_arret.json)."
+      }
+    },
+    "error": {},
+    "abort": {
+      "already_configured": "Cet arrêt est déjà configuré."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Paramètres de l'arrêt",
+        "data": {
+          "output_path": "Chemin du fichier JSON de sortie"
+        }
+      }
+    }
+  }
+}

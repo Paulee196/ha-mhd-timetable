@@ -1,13 +1,150 @@
 /**
  * MHD Timetable Card – departure display for Home Assistant Lovelace
  */
-var MHD_CARD_VERSION = "0.9.2";
+var MHD_CARD_VERSION = "0.10.0";
 // The card is always loaded as an ES module (?v= set by __init__.py), so the
 // badge follows the installed version automatically; the constant is a fallback.
 try {
   var _mhdV = new URL(import.meta.url).searchParams.get("v");
   if (_mhdV) MHD_CARD_VERSION = _mhdV;
 } catch (_e) { /* keep fallback */ }
+
+var MHD_I18N = {
+  cs: {
+    no_departures: "Žádné nadcházející spoje",
+    now: "Teď!", in_min: "za {0} min",
+    line_word: "Linka",
+    dep_text: "{0} - Směr {1} v {2}",
+    popup_title: "{0} - Směr {1}",
+    departure_at: "Odjezd v <strong>{0}</strong>",
+    no_route: "Trasa není k dispozici.",
+    ed_title: "Jízdní řády",
+    sec_stop: "Zastávka", sensor_label: "Senzor zastávky",
+    sensor_hint: "Senzor zastávky vytvořený doplňkem.",
+    custom_name: "Vlastní název zastávky", custom_name_ph: "Ponechte prázdné = název z integrace",
+    custom_name_hint: "Přepíše název zobrazený v hlavičce karty.",
+    sec_display: "Zobrazení", dep_count: "Počet odjezdů", dep_count_hint: "Nejbližších spojů (1–10, výchozí 3)",
+    sec_colors: "Barvy odjezdů", home_stop: "Domovská zastávka",
+    red_below: "🔴 Červená pod", yellow_below: "🟡 Žlutá pod",
+    min_default: "minut (výchozí {0})", min_inherit: "minut (prázdné = jako domovská)",
+    leg_under: "do {0} min", leg_between: "{0}–{1} min", leg_over: "nad {0} min",
+    cc_desc: "Zobrazí příští odjezdy z vybrané zastávky.",
+  },
+  sk: {
+    no_departures: "Žiadne nadchádzajúce spoje",
+    now: "Teraz!", in_min: "o {0} min",
+    line_word: "Linka",
+    dep_text: "{0} - Smer {1} o {2}",
+    popup_title: "{0} - Smer {1}",
+    departure_at: "Odchod o <strong>{0}</strong>",
+    no_route: "Trasa nie je k dispozícii.",
+    ed_title: "Cestovné poriadky",
+    sec_stop: "Zastávka", sensor_label: "Senzor zastávky",
+    sensor_hint: "Senzor zastávky vytvorený doplnkom.",
+    custom_name: "Vlastný názov zastávky", custom_name_ph: "Nechajte prázdne = názov z integrácie",
+    custom_name_hint: "Prepíše názov zobrazený v hlavičke karty.",
+    sec_display: "Zobrazenie", dep_count: "Počet odchodov", dep_count_hint: "Najbližších spojov (1–10, predvolené 3)",
+    sec_colors: "Farby odchodov", home_stop: "Domovská zastávka",
+    red_below: "🔴 Červená pod", yellow_below: "🟡 Žltá pod",
+    min_default: "minút (predvolené {0})", min_inherit: "minút (prázdne = ako domovská)",
+    leg_under: "do {0} min", leg_between: "{0}–{1} min", leg_over: "nad {0} min",
+    cc_desc: "Zobrazí najbližšie odchody z vybranej zastávky.",
+  },
+  en: {
+    no_departures: "No upcoming departures",
+    now: "Now!", in_min: "in {0} min",
+    line_word: "Line",
+    dep_text: "{0} - To {1} at {2}",
+    popup_title: "{0} - To {1}",
+    departure_at: "Departure at <strong>{0}</strong>",
+    no_route: "Route not available.",
+    ed_title: "Timetables",
+    sec_stop: "Stop", sensor_label: "Stop sensor",
+    sensor_hint: "Stop sensor created by the integration.",
+    custom_name: "Custom stop name", custom_name_ph: "Leave empty = name from the integration",
+    custom_name_hint: "Overrides the name shown in the card header.",
+    sec_display: "Display", dep_count: "Number of departures", dep_count_hint: "Upcoming departures (1–10, default 3)",
+    sec_colors: "Departure colors", home_stop: "Home stop",
+    red_below: "🔴 Red below", yellow_below: "🟡 Yellow below",
+    min_default: "minutes (default {0})", min_inherit: "minutes (empty = same as home)",
+    leg_under: "under {0} min", leg_between: "{0}–{1} min", leg_over: "over {0} min",
+    cc_desc: "Shows the next departures from a selected stop.",
+  },
+  de: {
+    no_departures: "Keine bevorstehenden Abfahrten",
+    now: "Jetzt!", in_min: "in {0} Min.",
+    line_word: "Linie",
+    dep_text: "{0} - Richtung {1} um {2}",
+    popup_title: "{0} - Richtung {1}",
+    departure_at: "Abfahrt um <strong>{0}</strong>",
+    no_route: "Strecke nicht verfügbar.",
+    ed_title: "Fahrpläne",
+    sec_stop: "Haltestelle", sensor_label: "Haltestellen-Sensor",
+    sensor_hint: "Von der Integration erstellter Haltestellen-Sensor.",
+    custom_name: "Eigener Haltestellenname", custom_name_ph: "Leer lassen = Name aus der Integration",
+    custom_name_hint: "Überschreibt den Namen in der Kartenüberschrift.",
+    sec_display: "Anzeige", dep_count: "Anzahl der Abfahrten", dep_count_hint: "Nächste Abfahrten (1–10, Standard 3)",
+    sec_colors: "Abfahrtsfarben", home_stop: "Heimathaltestelle",
+    red_below: "🔴 Rot unter", yellow_below: "🟡 Gelb unter",
+    min_default: "Minuten (Standard {0})", min_inherit: "Minuten (leer = wie Heimathaltestelle)",
+    leg_under: "unter {0} Min.", leg_between: "{0}–{1} Min.", leg_over: "über {0} Min.",
+    cc_desc: "Zeigt die nächsten Abfahrten einer gewählten Haltestelle.",
+  },
+  fr: {
+    no_departures: "Aucun départ à venir",
+    now: "Maintenant !", in_min: "dans {0} min",
+    line_word: "Ligne",
+    dep_text: "{0} - Direction {1} à {2}",
+    popup_title: "{0} - Direction {1}",
+    departure_at: "Départ à <strong>{0}</strong>",
+    no_route: "Itinéraire non disponible.",
+    ed_title: "Horaires",
+    sec_stop: "Arrêt", sensor_label: "Capteur de l'arrêt",
+    sensor_hint: "Capteur de l'arrêt créé par l'intégration.",
+    custom_name: "Nom personnalisé de l'arrêt", custom_name_ph: "Laisser vide = nom de l'intégration",
+    custom_name_hint: "Remplace le nom affiché dans l'en-tête de la carte.",
+    sec_display: "Affichage", dep_count: "Nombre de départs", dep_count_hint: "Prochains départs (1–10, défaut 3)",
+    sec_colors: "Couleurs des départs", home_stop: "Arrêt principal",
+    red_below: "🔴 Rouge sous", yellow_below: "🟡 Jaune sous",
+    min_default: "minutes (défaut {0})", min_inherit: "minutes (vide = comme l'arrêt principal)",
+    leg_under: "moins de {0} min", leg_between: "{0}–{1} min", leg_over: "plus de {0} min",
+    cc_desc: "Affiche les prochains départs d'un arrêt sélectionné.",
+  },
+  es: {
+    no_departures: "Sin salidas próximas",
+    now: "¡Ahora!", in_min: "en {0} min",
+    line_word: "Línea",
+    dep_text: "{0} - Dirección {1} a las {2}",
+    popup_title: "{0} - Dirección {1}",
+    departure_at: "Salida a las <strong>{0}</strong>",
+    no_route: "Recorrido no disponible.",
+    ed_title: "Horarios",
+    sec_stop: "Parada", sensor_label: "Sensor de la parada",
+    sensor_hint: "Sensor de la parada creado por la integración.",
+    custom_name: "Nombre personalizado de la parada", custom_name_ph: "Dejar vacío = nombre de la integración",
+    custom_name_hint: "Sustituye el nombre mostrado en la cabecera de la tarjeta.",
+    sec_display: "Visualización", dep_count: "Número de salidas", dep_count_hint: "Próximas salidas (1–10, predeterminado 3)",
+    sec_colors: "Colores de salidas", home_stop: "Parada principal",
+    red_below: "🔴 Rojo por debajo de", yellow_below: "🟡 Amarillo por debajo de",
+    min_default: "minutos (predeterminado {0})", min_inherit: "minutos (vacío = como la principal)",
+    leg_under: "menos de {0} min", leg_between: "{0}–{1} min", leg_over: "más de {0} min",
+    cc_desc: "Muestra las próximas salidas de una parada seleccionada.",
+  },
+};
+
+function mhdLang(hass) {
+  var l = ((hass && (hass.language || (hass.locale || {}).language)) || "en").toLowerCase().split("-")[0];
+  return MHD_I18N[l] ? l : "en";
+}
+
+function mhdT(hass, key) {
+  var lang = mhdLang(hass);
+  var s = MHD_I18N[lang] ? MHD_I18N[lang][key] : undefined;
+  if (s === undefined) s = MHD_I18N.en[key];
+  if (s === undefined) s = key;
+  for (var i = 2; i < arguments.length; i++) s = s.replace("{" + (i - 2) + "}", arguments[i]);
+  return s;
+}
 class MHDTimetableCard extends HTMLElement {
   constructor() {
     super();
@@ -84,7 +221,7 @@ class MHDTimetableCard extends HTMLElement {
     // Build departures HTML
     var depsHtml = "";
     if (allDeps.length === 0) {
-      depsHtml = `<div class="empty">Žádné nadcházející spoje</div>`;
+      depsHtml = `<div class="empty">${mhdT(this._hass, "no_departures")}</div>`;
     } else {
       var idx = 0;
       var self = this;
@@ -116,12 +253,13 @@ class MHDTimetableCard extends HTMLElement {
 
   _depHTML(dep, idx) {
     const mins = dep.minutes_until;
-    const countdownText = mins === 0 ? "Teď!" : `za ${mins} min`;
+    const countdownText = mins === 0 ? mhdT(this._hass, "now") : mhdT(this._hass, "in_min", mins);
     const colorClass = this._countdownClass(mins, dep.stop);
     const icon = this._typeIcon(dep.transport_type);
+    const lineLabel = dep.transport_type === "train" ? dep.line : mhdT(this._hass, "line_word") + " " + dep.line;
     return `
       <div class="departure" data-idx="${idx}">
-        <span class="dep-text"><span class="dep-type-icon">${icon}</span> ${dep.transport_type === "train" ? dep.line : "Linka " + dep.line} - Směr ${dep.direction} v ${dep.time}</span>
+        <span class="dep-text"><span class="dep-type-icon">${icon}</span> ${mhdT(this._hass, "dep_text", lineLabel, dep.direction, dep.time)}</span>
         <span class="dep-countdown ${colorClass}">(${countdownText})</span>
       </div>`;
   }
@@ -130,21 +268,22 @@ class MHDTimetableCard extends HTMLElement {
     const stops = dep.route ? dep.route.split(",").map(function(s) { return s.trim(); }).filter(Boolean) : [];
     const mins = dep.minutes_until;
     const colorClass = this._countdownClass(mins, dep.stop);
+    const lineLabel = dep.transport_type === "train" ? dep.line : mhdT(this._hass, "line_word") + " " + dep.line;
     return `
       <div class="popup-backdrop"></div>
       <div class="popup" role="dialog" aria-modal="true">
         <div class="popup-header">
-          <button class="popup-close" aria-label="Zavřít">✕</button>
-          <span class="popup-title">${dep.transport_type === "train" ? dep.line : "Linka " + dep.line} - Směr ${dep.direction}</span>
+          <button class="popup-close" aria-label="✕">✕</button>
+          <span class="popup-title">${mhdT(this._hass, "popup_title", lineLabel, dep.direction)}</span>
         </div>
         <div class="popup-body">
           <div class="popup-time-row">
-            <span class="popup-time-label">Odjezd v <strong>${dep.time}</strong></span>
-            <span class="popup-badge ${colorClass}">za ${mins} min</span>
+            <span class="popup-time-label">${mhdT(this._hass, "departure_at", dep.time)}</span>
+            <span class="popup-badge ${colorClass}">${mhdT(this._hass, "in_min", mins)}</span>
           </div>
           ${stops.length > 0
             ? `<p class="popup-route">${stops.join(", ")}</p>`
-            : `<p class="popup-no-route">Trasa není k dispozici.</p>`}
+            : `<p class="popup-no-route">${mhdT(this._hass, "no_route")}</p>`}
         </div>
       </div>`;
   }
@@ -305,6 +444,7 @@ class MHDTimetableCardEditor extends HTMLElement {
   }
 
   _render() {
+    var self = this;
     var c = this._config || {};
     var entity     = c.entity || "";
     var headerText = c.header_text || "";
@@ -405,88 +545,87 @@ class MHDTimetableCardEditor extends HTMLElement {
 
       <div class="ew">
         <div class="ew-title">
-          <span class="ew-title-name">Jízdní řády</span>
+          <span class="ew-title-name">${mhdT(this._hass, "ed_title")}</span>
           <span class="ew-version">${MHD_CARD_VERSION}</span>
         </div>
 
         <details open>
-          <summary>Zastávka</summary>
+          <summary>${mhdT(this._hass, "sec_stop")}</summary>
           <div class="sb">
             <div class="row full">
               <div class="field">
-                <label>Senzor zastávky</label>
+                <label>${mhdT(this._hass, "sensor_label")}</label>
                 <ha-entity-picker id="mhd-ep" allow-custom-entity></ha-entity-picker>
-                <p class="hint">Sensor zastávky vytvořený doplňkem MHD.</p>
+                <p class="hint">${mhdT(this._hass, "sensor_hint")}</p>
               </div>
             </div>
             <div class="row full" style="margin-top:10px">
               <div class="field">
-                <label>Vlastní název zastávky</label>
-                <input name="header_text" type="text" value="${headerText}" placeholder="Ponech prázdné = název z integrace">
-                <p class="hint">Přepíše název zobrazený v hlavičce karty.</p>
+                <label>${mhdT(this._hass, "custom_name")}</label>
+                <input name="header_text" type="text" value="${headerText}" placeholder="${mhdT(this._hass, "custom_name_ph")}">
+                <p class="hint">${mhdT(this._hass, "custom_name_hint")}</p>
               </div>
             </div>
           </div>
         </details>
 
         <details>
-          <summary>Zobrazení</summary>
+          <summary>${mhdT(this._hass, "sec_display")}</summary>
           <div class="sb">
             <div class="row full">
               <div class="field">
-                <label>Počet odjezdů</label>
+                <label>${mhdT(this._hass, "dep_count")}</label>
                 <input name="departures_count" type="number" min="1" max="10" value="${count}">
-                <p class="hint">Nejbližších spojů (1–10, výchozí 3)</p>
+                <p class="hint">${mhdT(this._hass, "dep_count_hint")}</p>
               </div>
             </div>
           </div>
         </details>
 
         <details>
-          <summary>Barvy odjezdů</summary>
+          <summary>${mhdT(this._hass, "sec_colors")}</summary>
           <div class="sb">
-            ${otherStops.length > 0 ? `<p class="sth-label">🏠 ${homeStop || "Domovská zastávka"}</p>` : ""}
+            ${otherStops.length > 0 ? `<p class="sth-label">🏠 ${homeStop || mhdT(this._hass, "home_stop")}</p>` : ""}
             <div class="row">
               <div class="field">
-                <label>🔴 Červená pod</label>
+                <label>${mhdT(this._hass, "red_below")}</label>
                 <input name="urgent_minutes" type="number" min="1" max="60" value="${urgent}">
-                <p class="hint">minut (výchozí 5)</p>
+                <p class="hint">${mhdT(this._hass, "min_default", 5)}</p>
               </div>
               <div class="field">
-                <label>🟡 Žlutá pod</label>
+                <label>${mhdT(this._hass, "yellow_below")}</label>
                 <input name="warning_minutes" type="number" min="1" max="120" value="${warning}">
-                <p class="hint">minut (výchozí 10)</p>
+                <p class="hint">${mhdT(this._hass, "min_default", 10)}</p>
               </div>
             </div>
             <div class="legend" data-legend="">
-              <div class="li"><div class="sw sw-r"></div><span class="leg-u">do ${urgent} min</span></div>
-              <div class="li"><div class="sw sw-y"></div><span class="leg-w">${urgent}–${warning} min</span></div>
-              <div class="li"><div class="sw sw-g"></div><span class="leg-o">nad ${warning} min</span></div>
+              <div class="li"><div class="sw sw-r"></div><span class="leg-u">${mhdT(this._hass, "leg_under", urgent)}</span></div>
+              <div class="li"><div class="sw sw-y"></div><span class="leg-w">${mhdT(this._hass, "leg_between", urgent, warning)}</span></div>
+              <div class="li"><div class="sw sw-g"></div><span class="leg-o">${mhdT(this._hass, "leg_over", warning)}</span></div>
             </div>
             ${otherStops.map(function(stop) {
               var st = stopThresholds[stop] || {};
               var su = st.urgent_minutes !== undefined ? st.urgent_minutes : urgent;
               var sw = st.warning_minutes !== undefined ? st.warning_minutes : warning;
               var ticon = typeIcons[otherStopsSet[stop]] || "🚌";
-              var sid = stop.replace(/[^a-z0-9]/gi, "_");
               return `
             <div class="sth-divider"></div>
             <p class="sth-label">${ticon} ${stop}</p>
             <div class="row">
               <div class="field">
-                <label>🔴 Červená pod</label>
+                <label>${mhdT(self._hass, "red_below")}</label>
                 <input name="urgent_minutes" type="number" min="1" max="120" value="${su}" data-stop="${stop}">
-                <p class="hint">minut (prázdné = jako domovská)</p>
+                <p class="hint">${mhdT(self._hass, "min_inherit")}</p>
               </div>
               <div class="field">
-                <label>🟡 Žlutá pod</label>
+                <label>${mhdT(self._hass, "yellow_below")}</label>
                 <input name="warning_minutes" type="number" min="1" max="240" value="${sw}" data-stop="${stop}">
               </div>
             </div>
             <div class="legend" data-legend="${stop}">
-              <div class="li"><div class="sw sw-r"></div><span class="leg-u">do ${su} min</span></div>
-              <div class="li"><div class="sw sw-y"></div><span class="leg-w">${su}–${sw} min</span></div>
-              <div class="li"><div class="sw sw-g"></div><span class="leg-o">nad ${sw} min</span></div>
+              <div class="li"><div class="sw sw-r"></div><span class="leg-u">${mhdT(self._hass, "leg_under", su)}</span></div>
+              <div class="li"><div class="sw sw-y"></div><span class="leg-w">${mhdT(self._hass, "leg_between", su, sw)}</span></div>
+              <div class="li"><div class="sw sw-g"></div><span class="leg-o">${mhdT(self._hass, "leg_over", sw)}</span></div>
             </div>`;
             }).join("")}
           </div>
@@ -590,9 +729,9 @@ class MHDTimetableCardEditor extends HTMLElement {
     var u = legend.querySelector(".leg-u");
     var w = legend.querySelector(".leg-w");
     var o = legend.querySelector(".leg-o");
-    if (u) u.textContent = "do " + urgent + " min";
-    if (w) w.textContent = urgent + "–" + warning + " min";
-    if (o) o.textContent = "nad " + warning + " min";
+    if (u) u.textContent = mhdT(this._hass, "leg_under", urgent);
+    if (w) w.textContent = mhdT(this._hass, "leg_between", urgent, warning);
+    if (o) o.textContent = mhdT(this._hass, "leg_over", warning);
   }
 
 }
@@ -605,10 +744,12 @@ if (!customElements.get("mhd-timetable-card-editor")) {
 }
 
 window.customCards = window.customCards || [];
+var _mhdCcLang = (navigator.language || "en").toLowerCase().split("-")[0];
+var _mhdCcDict = MHD_I18N[_mhdCcLang] || MHD_I18N.en;
 window.customCards.push({
   type: "mhd-timetable-card",
-  name: "Jízdní řády",
-  description: "Zobrazí příští odjezdy z vybrané zastávky.",
+  name: _mhdCcDict.ed_title,
+  description: _mhdCcDict.cc_desc,
   preview: true,
   documentationURL: "https://github.com/smarthome4u/ha-mhd-timetable",
 });

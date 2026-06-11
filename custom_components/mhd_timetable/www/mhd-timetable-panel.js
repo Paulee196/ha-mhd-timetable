@@ -23,6 +23,16 @@ const TRAIN_CATEGORIES = {
 };
 const TCAT_COLORS = ["#d32f2f", "#7b1fa2", "#00796b", "#5d4037"];
 
+// Schedule-combine presets: day types that share one timetable when chosen.
+// Workday is never combined; vacation schedules are always separate.
+const COMBINE_PRESETS = {
+  none: [],
+  weekend: [["saturday", "sunday"]],
+  weekend_holiday: [["saturday", "sunday", "holiday"]],
+  sunday_holiday: [["sunday", "holiday"]],
+};
+const COMBINE_ORDER = ["none", "weekend", "weekend_holiday", "sunday_holiday"];
+
 const I18N = {
   cs: {
     title: "Jízdní řády", loading: "Načítání…",
@@ -34,6 +44,10 @@ const I18N = {
     add_line: "+ Přidat spoj", save_changes: "Uložit změny", saving: "Ukládání…",
     load_failed: "Nepodařilo se načíst data zastávky.", edit: "Upravit", vac_count: "+ {0} prázdn.",
     sched_workday: "Pracovní den", sched_saturday: "Sobota", sched_sunday: "Neděle", sched_holiday: "Státní svátek",
+    sched_abbr_workday: "Prac. den", sched_abbr_saturday: "So", sched_abbr_sunday: "Ne", sched_abbr_holiday: "Svátek",
+    combine_label: "Spojit jízdní řády (volitelné)",
+    combine_none: "Nespojovat", combine_weekend: "Víkend (So + Ne)", combine_weekend_holiday: "So + Ne + svátek", combine_sunday_holiday: "Ne + svátek",
+    combine_hint: "Spojené dny sdílejí jeden jízdní řád – vyplníte je jen jednou.",
     tt_bus: "Autobus", tt_trolleybus: "Trolejbus", tt_tram: "Tramvaj", tt_train: "Vlak",
     new_line: "Nový spoj", line_word: "Linka", train_word: "Vlak",
     transport_type: "Typ dopravy",
@@ -87,6 +101,10 @@ const I18N = {
     add_line: "+ Pridať spoj", save_changes: "Uložiť zmeny", saving: "Ukladanie…",
     load_failed: "Nepodarilo sa načítať údaje zastávky.", edit: "Upraviť", vac_count: "+ {0} prázdn.",
     sched_workday: "Pracovný deň", sched_saturday: "Sobota", sched_sunday: "Nedeľa", sched_holiday: "Štátny sviatok",
+    sched_abbr_workday: "Prac. deň", sched_abbr_saturday: "So", sched_abbr_sunday: "Ne", sched_abbr_holiday: "Sviatok",
+    combine_label: "Spojiť cestovné poriadky (voliteľné)",
+    combine_none: "Nespájať", combine_weekend: "Víkend (So + Ne)", combine_weekend_holiday: "So + Ne + sviatok", combine_sunday_holiday: "Ne + sviatok",
+    combine_hint: "Spojené dni zdieľajú jeden cestovný poriadok – vyplníte ich len raz.",
     tt_bus: "Autobus", tt_trolleybus: "Trolejbus", tt_tram: "Električka", tt_train: "Vlak",
     new_line: "Nový spoj", line_word: "Linka", train_word: "Vlak",
     transport_type: "Typ dopravy",
@@ -140,6 +158,10 @@ const I18N = {
     add_line: "+ Add line", save_changes: "Save changes", saving: "Saving…",
     load_failed: "Failed to load stop data.", edit: "Edit", vac_count: "+ {0} vac.",
     sched_workday: "Workday", sched_saturday: "Saturday", sched_sunday: "Sunday", sched_holiday: "Public holiday",
+    sched_abbr_workday: "Workday", sched_abbr_saturday: "Sat", sched_abbr_sunday: "Sun", sched_abbr_holiday: "Holiday",
+    combine_label: "Combine schedules (optional)",
+    combine_none: "Don't combine", combine_weekend: "Weekend (Sat + Sun)", combine_weekend_holiday: "Sat + Sun + holiday", combine_sunday_holiday: "Sun + holiday",
+    combine_hint: "Combined days share one timetable – you fill it in only once.",
     tt_bus: "Bus", tt_trolleybus: "Trolleybus", tt_tram: "Tram", tt_train: "Train",
     new_line: "New line", line_word: "Line", train_word: "Train",
     transport_type: "Transport type",
@@ -193,6 +215,10 @@ const I18N = {
     add_line: "+ Linie hinzufügen", save_changes: "Änderungen speichern", saving: "Wird gespeichert…",
     load_failed: "Daten der Haltestelle konnten nicht geladen werden.", edit: "Bearbeiten", vac_count: "+ {0} Ferien",
     sched_workday: "Werktag", sched_saturday: "Samstag", sched_sunday: "Sonntag", sched_holiday: "Feiertag",
+    sched_abbr_workday: "Werktag", sched_abbr_saturday: "Sa", sched_abbr_sunday: "So", sched_abbr_holiday: "Feiertag",
+    combine_label: "Fahrpläne zusammenfassen (optional)",
+    combine_none: "Nicht zusammenfassen", combine_weekend: "Wochenende (Sa + So)", combine_weekend_holiday: "Sa + So + Feiertag", combine_sunday_holiday: "So + Feiertag",
+    combine_hint: "Zusammengefasste Tage teilen einen Fahrplan – Sie füllen ihn nur einmal aus.",
     tt_bus: "Bus", tt_trolleybus: "O-Bus", tt_tram: "Straßenbahn", tt_train: "Zug",
     new_line: "Neue Linie", line_word: "Linie", train_word: "Zug",
     transport_type: "Verkehrsmittel",
@@ -246,6 +272,10 @@ const I18N = {
     add_line: "+ Ajouter une ligne", save_changes: "Enregistrer les modifications", saving: "Enregistrement…",
     load_failed: "Impossible de charger les données de l'arrêt.", edit: "Modifier", vac_count: "+ {0} vac.",
     sched_workday: "Jour ouvré", sched_saturday: "Samedi", sched_sunday: "Dimanche", sched_holiday: "Jour férié",
+    sched_abbr_workday: "Ouvré", sched_abbr_saturday: "Sam", sched_abbr_sunday: "Dim", sched_abbr_holiday: "Férié",
+    combine_label: "Combiner les horaires (facultatif)",
+    combine_none: "Ne pas combiner", combine_weekend: "Week-end (Sam + Dim)", combine_weekend_holiday: "Sam + Dim + férié", combine_sunday_holiday: "Dim + férié",
+    combine_hint: "Les jours combinés partagent un horaire – vous ne le remplissez qu'une fois.",
     tt_bus: "Bus", tt_trolleybus: "Trolleybus", tt_tram: "Tramway", tt_train: "Train",
     new_line: "Nouvelle ligne", line_word: "Ligne", train_word: "Train",
     transport_type: "Type de transport",
@@ -299,6 +329,10 @@ const I18N = {
     add_line: "+ Añadir línea", save_changes: "Guardar cambios", saving: "Guardando…",
     load_failed: "No se pudieron cargar los datos de la parada.", edit: "Editar", vac_count: "+ {0} vac.",
     sched_workday: "Día laborable", sched_saturday: "Sábado", sched_sunday: "Domingo", sched_holiday: "Festivo",
+    sched_abbr_workday: "Laborable", sched_abbr_saturday: "Sáb", sched_abbr_sunday: "Dom", sched_abbr_holiday: "Festivo",
+    combine_label: "Combinar horarios (opcional)",
+    combine_none: "No combinar", combine_weekend: "Fin de semana (Sáb + Dom)", combine_weekend_holiday: "Sáb + Dom + festivo", combine_sunday_holiday: "Dom + festivo",
+    combine_hint: "Los días combinados comparten un horario: solo lo rellena una vez.",
     tt_bus: "Autobús", tt_trolleybus: "Trolebús", tt_tram: "Tranvía", tt_train: "Tren",
     new_line: "Nueva línea", line_word: "Línea", train_word: "Tren",
     transport_type: "Tipo de transporte",
@@ -472,6 +506,58 @@ class MHDTimetablePanel extends HTMLElement {
       }
     });
     return tabs;
+  }
+
+  // Builds the schedule tab groups for a line. Active base day types are merged
+  // according to ld.combine; each group shares one timetable. Vacation tabs are
+  // appended individually (never combined). Returns [{ key, members, label, vacation }].
+  _scheduleGroups(ld) {
+    const active = BASE_TYPES.filter(t => (ld.schedule_types || []).includes(t));
+    const linkSets = COMBINE_PRESETS[ld.combine || "none"] || [];
+    const assigned = new Set();
+    const groups = [];
+    active.forEach(t => {
+      if (assigned.has(t)) return;
+      let members = [t];
+      for (const set of linkSets) {
+        if (set.includes(t)) {
+          const inter = active.filter(x => set.includes(x));
+          if (inter.length >= 2) { members = inter; break; }
+        }
+      }
+      members.forEach(m => assigned.add(m));
+      groups.push({
+        key: members[0],
+        members,
+        vacation: false,
+        label: members.length > 1
+          ? members.map(m => this._t("sched_abbr_" + m)).join(" + ")
+          : this._schedLabel(members[0]),
+      });
+    });
+    this._vacationTabs().forEach(vt => {
+      groups.push({ key: vt.key, members: [vt.key], vacation: true, label: vt.label });
+    });
+    return groups;
+  }
+
+  // Resolves which underlying day types a tab key writes to (combined group or self).
+  _membersForKey(ld, key) {
+    const g = this._scheduleGroups(ld).find(grp => grp.key === key);
+    return g ? g.members : [key];
+  }
+
+  // Mirrors each combined group's primary schedule onto its other members, so the
+  // sensor (which reads each day type independently) sees identical times.
+  _syncCombinedSchedules(ld) {
+    this._scheduleGroups(ld).forEach(g => {
+      if (g.members.length > 1) {
+        const src = ld[g.key] || {};
+        g.members.forEach(m => {
+          if (m !== g.key) ld[m] = JSON.parse(JSON.stringify(src));
+        });
+      }
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -687,15 +773,17 @@ class MHDTimetablePanel extends HTMLElement {
     const isNew = this._editorLine === "__new__";
     const ld = this._getLineData();
     const types = (ld.schedule_types || ["workday", "saturday", "sunday"]).filter(t => BASE_TYPES.includes(t));
-    const tab = this._editorTab;
     const vacTabs = this._vacationTabs();
+    const combine = ld.combine || "none";
 
-    const allTabs = [
-      ...types.map(t => ({ key: t, label: this._schedLabel(t), vacation: false })),
-      ...vacTabs.map(t => ({ ...t, vacation: true })),
-    ];
-
-    const currentTabLabel = allTabs.find(t => t.key === tab)?.label || tab;
+    const groups = this._scheduleGroups(ld);
+    // Keep the active tab pointing at a real group (combine/active changes can drop it)
+    let tab = this._editorTab;
+    if (!groups.some(g => g.key === tab)) {
+      tab = groups[0]?.key || "workday";
+      this._editorTab = tab;
+    }
+    const currentTabLabel = groups.find(g => g.key === tab)?.label || tab;
 
     const ttype = ld.transport_type || "bus";
     const customStop = ld.custom_stop || "";
@@ -778,11 +866,21 @@ class MHDTimetablePanel extends HTMLElement {
             ? `<p class="hint" style="margin-top:8px">${this._t("vac_tabs_list")} <strong>${vacTabs.map(t => t.label).join(", ")}</strong></p>`
             : `<p class="hint" style="margin-top:8px">${this._t("vac_tabs_empty")}</p>`}
         </div>
+        <div class="field">
+          <label>${this._t("combine_label")}</label>
+          <div class="ttype-chips">
+            ${COMBINE_ORDER.map(c => `
+              <button class="combine-chip ${combine === c ? "active" : ""}" data-combine="${c}" style="--tc:#5e35b1">
+                ${this._t("combine_" + c)}
+              </button>`).join("")}
+          </div>
+          <p class="hint" style="margin-top:6px">${this._t("combine_hint")}</p>
+        </div>
       </div>
       <div class="sched-tabs">
-        ${allTabs.map(t => `
-          <button class="stab stab-${this._schedColor(t.key)} ${t.vacation ? "vac-stab" : ""} ${t.key === tab ? "active" : ""}" data-type="${t.key}">
-            ${t.label}
+        ${groups.map(g => `
+          <button class="stab stab-${this._schedColor(g.key)} ${g.vacation ? "vac-stab" : ""} ${g.key === tab ? "active" : ""}" data-type="${g.key}">
+            ${g.label}
           </button>`).join("")}
       </div>
       <div class="time-grid-wrap">
@@ -791,7 +889,7 @@ class MHDTimetablePanel extends HTMLElement {
             ? this._t("vac_grid_hint", currentTabLabel)
             : this._t("grid_hint")}
         </p>
-        <div class="time-grid">${this._timeGridHTML(ld, tab, allTabs.map(t => t.key))}</div>
+        <div class="time-grid">${this._timeGridHTML(ld, tab, groups.map(g => g.key))}</div>
       </div>
       <div class="footer">
         <button class="line-save-btn">${isNew ? this._t("add_line_btn") : this._t("save_line")}</button>
@@ -1056,6 +1154,18 @@ class MHDTimetablePanel extends HTMLElement {
       });
     });
 
+    // Schedule combine presets
+    root.querySelectorAll(".combine-chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        this._syncFields();
+        const ld = this._getLineData();
+        ld.combine = chip.dataset.combine;
+        this._syncCombinedSchedules(ld);
+        this._expandedHours = {};
+        this._render();
+      });
+    });
+
     // Custom stop checkbox
     root.querySelector("#le-cs-cb")?.addEventListener("change", e => {
       const inp   = root.querySelector("#le-cs-inp");
@@ -1117,6 +1227,7 @@ class MHDTimetablePanel extends HTMLElement {
     root.querySelector(".line-save-btn")?.addEventListener("click", () => {
       this._syncFields();
       const ld = this._getLineData();
+      this._syncCombinedSchedules(ld);
       const isNew = this._editorLine === "__new__";
       if (!this._data.lines) this._data.lines = {};
 
@@ -1171,7 +1282,7 @@ class MHDTimetablePanel extends HTMLElement {
   _getLineData() {
     if (this._editorLine === "__new__") {
       if (!this._data._newLine) this._data._newLine = {
-        transport_type: "bus", custom_stop: "", train_category: "",
+        transport_type: "bus", custom_stop: "", train_category: "", combine: "none",
         direction: "", route: "", valid_from: new Date().toISOString().slice(0, 10),
         schedule_types: ["workday", "saturday", "sunday"],
         workday: {}, saturday: {}, sunday: {}, holiday: {},
@@ -1201,6 +1312,8 @@ class MHDTimetablePanel extends HTMLElement {
     if (idx >= 0) arr.splice(idx, 1); else arr.push(minute);
     arr.sort((a, b) => a - b);
     if (arr.length === 0) delete ld[type][key];
+    // Mirror the edit into the other days of a combined group
+    this._syncCombinedSchedules(ld);
   }
 
   async _saveData() {
@@ -1484,18 +1597,18 @@ class MHDTimetablePanel extends HTMLElement {
       .type-chip input { display: none; }
 
       .ttype-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-      .ttype-chip, .tcat-chip {
+      .ttype-chip, .tcat-chip, .combine-chip {
         display: flex; align-items: center; gap: 6px;
         padding: 6px 14px; border-radius: 20px; cursor: pointer;
         border: 2px solid var(--tc, #999);
         background: transparent; color: var(--tc, #999);
         font-size: 0.9em; font-weight: 600; transition: all 0.2s;
       }
-      .ttype-chip.active, .tcat-chip.active {
+      .ttype-chip.active, .tcat-chip.active, .combine-chip.active {
         background: var(--tc, #999);
         color: #fff;
       }
-      .ttype-chip:hover:not(.active), .tcat-chip:hover:not(.active) { opacity: 0.75; }
+      .ttype-chip:hover:not(.active), .tcat-chip:hover:not(.active), .combine-chip:hover:not(.active) { opacity: 0.75; }
 
       .sched-tabs {
         display: flex; flex-wrap: wrap; gap: 6px;

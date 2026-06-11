@@ -1,7 +1,7 @@
 {
   "domain": "mhd_timetable",
   "name": "Jízdní řády",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "documentation": "https://github.com/smarthome4u/ha-mhd-timetable",
   "issue_tracker": "https://github.com/smarthome4u/ha-mhd-timetable/issues",
   "codeowners": [],

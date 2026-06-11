@@ -72,7 +72,7 @@ class MHDNextDeparturesSensor(SensorEntity):
             self._attr_native_value = "Žádné spoje"
         else:
             first = departures[0]
-            line_prefix = "Vlak" if first.get("transport_type") in ("train", "vlak") else f"Linka {first['line']}"
+            line_prefix = first["line"] if first.get("transport_type") == "train" else f"Linka {first['line']}"
             self._attr_native_value = (
                 f"{line_prefix} - Směr {first['direction']} "
                 f"v {first['time']} (za {first['minutes_until']} min)"
@@ -89,7 +89,7 @@ class MHDNextDeparturesSensor(SensorEntity):
             "time": departures[0]["time"] if departures else "",
             "direction": departures[0]["direction"] if departures else "",
             "next_list": ", ".join(
-                f"{'Vlak' if d.get('transport_type') in ('train', 'vlak') else d['line']} - Směr {d['direction']} {d['time']} ({d['minutes_until']} min)"
+                f"{d['line']} - Směr {d['direction']} {d['time']} ({d['minutes_until']} min)"
                 for d in departures[1:3]
             ),
         }
@@ -119,14 +119,29 @@ def _get_schedule_type(data: dict, today: date, country: str) -> str:
     return "sunday"
 
 
-def _compute_next_departures(data: dict, now: datetime, country: str = "CZ") -> dict:
-    today = now.date()
-    schedule_type = _get_schedule_type(data, today, country)
+# Legacy Czech keys stored by older versions → canonical keys
+_TT_CANONICAL = {"vlak": "train", "tramvaj": "tram", "trolejbus": "trolleybus", "autobus": "bus"}
 
-    # Fallback chain: holiday→sunday, vacation_*→workday
+
+def _effective_schedule(line_data: dict, schedule_type: str) -> str | None:
+    """Resolve schedule key for a line incl. fallback (holiday→sunday, vacation→workday)."""
     fallback: dict[str, str] = {"holiday": "sunday"}
     if schedule_type.startswith("vacation_"):
         fallback[schedule_type] = "workday"
+    effective = schedule_type
+    if effective not in line_data or not line_data.get(effective):
+        effective = fallback.get(schedule_type, schedule_type)
+    if effective not in line_data:
+        return None
+    return effective
+
+
+def _compute_next_departures(data: dict, now: datetime, country: str = "CZ") -> dict:
+    today = now.date()
+    schedule_type = _get_schedule_type(data, today, country)
+    # Departures after midnight must follow TOMORROW's schedule type
+    # (Friday evening shows Saturday morning trips from the Saturday schedule).
+    tomorrow_type = _get_schedule_type(data, today + timedelta(days=1), country)
 
     next_buses: list[dict] = []
     routes: list[dict] = []
@@ -137,37 +152,48 @@ def _compute_next_departures(data: dict, now: datetime, country: str = "CZ") -> 
         direction = line_data.get("direction", "")
         route = line_data.get("route", "")
         transport_type = line_data.get("transport_type", "bus")
+        transport_type = _TT_CANONICAL.get(transport_type, transport_type)
         custom_stop = (line_data.get("custom_stop") or "").strip()
         stop_name = custom_stop if custom_stop else home_stop
-        line_display = "Vlak" if transport_type in ("train", "vlak") else line_num
+        if transport_type == "train":
+            category = (line_data.get("train_category") or "").strip()
+            line_display = f"Vlak {category}".strip()
+        else:
+            line_display = line_num
 
         routes.append({"line": line_display, "direction": direction, "route": route, "transport_type": transport_type, "stop": stop_name})
 
-        effective = schedule_type
-        if effective not in line_data or not line_data.get(effective):
-            effective = fallback.get(schedule_type, schedule_type)
-        if effective not in line_data:
-            continue
+        def _add_departure(dt: datetime) -> None:
+            next_buses.append(
+                {
+                    "minutes_until": int((dt - now).total_seconds() / 60),
+                    "line": line_display,
+                    "time": dt.strftime("%H:%M"),
+                    "direction": direction,
+                    "route": route,
+                    "transport_type": transport_type,
+                    "stop": stop_name,
+                }
+            )
 
-        for hour_str, minutes in line_data[effective].items():
-            for minute in minutes:
-                dt = now.replace(
-                    hour=int(hour_str), minute=int(minute), second=0, microsecond=0
-                )
-                if dt < now:
-                    dt += timedelta(days=1)
-                diff = int((dt - now).total_seconds() / 60)
-                next_buses.append(
-                    {
-                        "minutes_until": diff,
-                        "line": line_display,
-                        "time": dt.strftime("%H:%M"),
-                        "direction": direction,
-                        "route": route,
-                        "transport_type": transport_type,
-                        "stop": stop_name,
-                    }
-                )
+        effective = _effective_schedule(line_data, schedule_type)
+        if effective:
+            for hour_str, minutes in line_data[effective].items():
+                for minute in minutes:
+                    dt = now.replace(
+                        hour=int(hour_str), minute=int(minute), second=0, microsecond=0
+                    )
+                    if dt >= now:
+                        _add_departure(dt)
+
+        effective_tomorrow = _effective_schedule(line_data, tomorrow_type)
+        if effective_tomorrow:
+            base = now + timedelta(days=1)
+            for hour_str, minutes in line_data[effective_tomorrow].items():
+                for minute in minutes:
+                    _add_departure(base.replace(
+                        hour=int(hour_str), minute=int(minute), second=0, microsecond=0
+                    ))
 
     next_buses.sort(key=lambda x: x["minutes_until"])
     return {

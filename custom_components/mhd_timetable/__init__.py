@@ -5,6 +5,8 @@ import json
 import logging
 import os
 import pathlib
+import re
+import unicodedata
 import uuid
 
 import voluptuous as vol
@@ -194,6 +196,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     store = Store(hass, STORAGE_VERSION, f"{STORAGE_KEY}_{entry.entry_id}")
     data = await store.async_load() or _default_data(entry.data["stop_name"])
+    if _migrate_data(data):
+        await store.async_save(data)
+        _LOGGER.info("Migrated stored timetable data for %s", entry.data["stop_name"])
 
     hass.data[DOMAIN][entry.entry_id] = {
         "store": store,
@@ -252,6 +257,48 @@ def _default_data(stop_name: str) -> dict:
         "vacation_periods": [],
         "lines": {},
     }
+
+
+# Legacy Czech transport type keys (stored by 0.8.5/0.8.6) → canonical keys
+_TT_MIGRATION = {"vlak": "train", "tramvaj": "tram", "trolejbus": "trolleybus", "autobus": "bus"}
+
+
+def _train_key(direction: str, category: str) -> str:
+    """Deterministic line key for a train: train_<direction-slug>[_<category>]."""
+    slug = unicodedata.normalize("NFD", direction or "")
+    slug = "".join(c for c in slug if not unicodedata.combining(c)).lower()
+    slug = re.sub(r"[^a-z0-9]+", "_", slug).strip("_")[:30]
+    key = "train" + (f"_{slug}" if slug else "")
+    if category:
+        key += f"_{category.lower()}"
+    return key
+
+
+def _migrate_data(data: dict) -> bool:
+    """One-time cleanup of stored data. Returns True if anything changed."""
+    changed = False
+    lines = data.get("lines") or {}
+
+    for line_data in lines.values():
+        tt = line_data.get("transport_type")
+        if tt in _TT_MIGRATION:
+            line_data["transport_type"] = _TT_MIGRATION[tt]
+            changed = True
+
+    # Re-key train lines that got a random generated suffix (train_trutnov_mb3xyz…)
+    for key in list(lines.keys()):
+        line_data = lines[key]
+        if line_data.get("transport_type") != "train":
+            continue
+        target = _train_key(
+            line_data.get("direction", ""),
+            (line_data.get("train_category") or "").strip(),
+        )
+        if target != key and target not in lines:
+            lines[target] = lines.pop(key)
+            changed = True
+
+    return changed
 
 
 async def _write_json_file(hass: HomeAssistant, path: str, data: dict) -> None:

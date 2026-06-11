@@ -1,7 +1,13 @@
 /**
  * MHD Timetable Card – departure display for Home Assistant Lovelace
  */
-var MHD_CARD_VERSION = "0.9.1";
+var MHD_CARD_VERSION = "0.9.2";
+// The card is always loaded as an ES module (?v= set by __init__.py), so the
+// badge follows the installed version automatically; the constant is a fallback.
+try {
+  var _mhdV = new URL(import.meta.url).searchParams.get("v");
+  if (_mhdV) MHD_CARD_VERSION = _mhdV;
+} catch (_e) { /* keep fallback */ }
 class MHDTimetableCard extends HTMLElement {
   constructor() {
     super();
@@ -115,7 +121,7 @@ class MHDTimetableCard extends HTMLElement {
     const icon = this._typeIcon(dep.transport_type);
     return `
       <div class="departure" data-idx="${idx}">
-        <span class="dep-text"><span class="dep-type-icon">${icon}</span> ${["train","vlak"].includes(dep.transport_type) ? "Vlak" : "Linka " + dep.line} - Směr ${dep.direction} v ${dep.time}</span>
+        <span class="dep-text"><span class="dep-type-icon">${icon}</span> ${dep.transport_type === "train" ? dep.line : "Linka " + dep.line} - Směr ${dep.direction} v ${dep.time}</span>
         <span class="dep-countdown ${colorClass}">(${countdownText})</span>
       </div>`;
   }
@@ -129,7 +135,7 @@ class MHDTimetableCard extends HTMLElement {
       <div class="popup" role="dialog" aria-modal="true">
         <div class="popup-header">
           <button class="popup-close" aria-label="Zavřít">✕</button>
-          <span class="popup-title">${["train","vlak"].includes(dep.transport_type) ? "Vlak" : "Linka " + dep.line} - Směr ${dep.direction}</span>
+          <span class="popup-title">${dep.transport_type === "train" ? dep.line : "Linka " + dep.line} - Směr ${dep.direction}</span>
         </div>
         <div class="popup-body">
           <div class="popup-time-row">

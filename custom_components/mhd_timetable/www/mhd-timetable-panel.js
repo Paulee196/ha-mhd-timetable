@@ -271,12 +271,13 @@ class MHDTimetablePanel extends HTMLElement {
     const vacLabel = vacCount > 0 ? ` + ${vacCount} prázdnin.` : "";
     const tt = data.transport_type || "bus";
     const badge = tt === "train" ? "🚂" : tt === "tram" ? "🚋" : tt === "trolleybus" ? "🚎" : num;
+    const tcat = tt === "train" && data.train_category ? `${data.train_category} ` : "";
     return `
       <div class="line-row">
         <div class="lr-left">
           <span class="lr-num">${badge}</span>
           <div class="lr-meta">
-            <span class="lr-dir">${data.direction || ""}</span>
+            <span class="lr-dir">${tcat}${data.direction || ""}</span>
             <span class="lr-types">${types}${vacLabel}</span>
           </div>
         </div>
@@ -397,11 +398,13 @@ class MHDTimetablePanel extends HTMLElement {
 
     const ttype = ld.transport_type || "bus";
     const customStop = ld.custom_stop || "";
+    const isTrain = ttype === "train";
+    const tcat = ld.train_category || "";
 
     return `
       <div class="le-header">
         <button class="back-btn">← Zpět</button>
-        <h2>${isNew ? "Nová linka" : ttype === "train" ? `Vlak${ld.direction ? " → " + ld.direction : ""}` : `Linka ${this._editorLine}`}</h2>
+        <h2>${isNew ? "Nová linka" : isTrain ? `Vlak${tcat ? " " + tcat : ""}${ld.direction ? " → " + ld.direction : ""}` : `Linka ${this._editorLine}`}</h2>
       </div>
       <div class="le-fields">
         <div class="field">
@@ -414,10 +417,19 @@ class MHDTimetablePanel extends HTMLElement {
               </button>`).join("")}
           </div>
         </div>
+        ${isTrain ? `
+        <div class="field">
+          <label>Kategorie vlaku (nepovinné)</label>
+          <div class="ttype-chips">
+            <button class="tcat-chip ${tcat === "R" ? "active" : ""}" data-cat="R" style="--tc:#d32f2f">R – rychlík</button>
+            <button class="tcat-chip ${tcat === "Sp" ? "active" : ""}" data-cat="Sp" style="--tc:#7b1fa2">Sp – spěšný vlak</button>
+          </div>
+          <p class="hint" style="margin-top:6px">Vlaky stejným směrem patří do jedné linky. Kategorií rozlišíte rychlík/spěšný od osobních vlaků.</p>
+        </div>` : `
         <div class="field">
           <label>Číslo linky</label>
           <input id="le-num" value="${isNew ? this._newLineNum : this._editorLine}" ${isNew ? "" : "readonly"}>
-        </div>
+        </div>`}
         <div class="field">
           <label>Směr (cílová zastávka)</label>
           <input id="le-dir" value="${ld.direction || ""}">
@@ -582,7 +594,11 @@ class MHDTimetablePanel extends HTMLElement {
     });
     root.querySelectorAll(".btn-del").forEach(btn => {
       btn.addEventListener("click", () => {
-        if (!confirm(`Smazat linku ${btn.dataset.line}?`)) return;
+        const ld = this._data.lines[btn.dataset.line] || {};
+        const label = ld.transport_type === "train"
+          ? `vlak${ld.train_category ? " " + ld.train_category : ""} směr ${ld.direction || "?"}`
+          : `linku ${btn.dataset.line}`;
+        if (!confirm(`Smazat ${label}?`)) return;
         delete this._data.lines[btn.dataset.line];
         this._render();
       });
@@ -713,6 +729,16 @@ class MHDTimetablePanel extends HTMLElement {
       });
     });
 
+    // Train category chips (toggle - click active one to deselect)
+    root.querySelectorAll(".tcat-chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        this._syncFields();
+        const ld = this._getLineData();
+        ld.train_category = ld.train_category === chip.dataset.cat ? "" : chip.dataset.cat;
+        this._render();
+      });
+    });
+
     // Custom stop checkbox
     root.querySelector("#le-cs-cb")?.addEventListener("change", e => {
       const inp   = root.querySelector("#le-cs-inp");
@@ -774,21 +800,39 @@ class MHDTimetablePanel extends HTMLElement {
     root.querySelector(".line-save-btn")?.addEventListener("click", () => {
       this._syncFields();
       const ld = this._getLineData();
-      let num = root.querySelector("#le-num")?.value?.trim();
-      if (!num) {
-        if ((ld.transport_type || "bus") === "train") {
-          const dir = (ld.direction || "linka").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 20);
-          num = `train_${dir || "linka"}_${Date.now().toString(36)}`;
-        } else {
-          alert("Zadejte číslo linky."); return;
-        }
-      }
+      const isNew = this._editorLine === "__new__";
       if (!this._data.lines) this._data.lines = {};
+
+      let num;
+      if (!isNew) {
+        num = this._editorLine;
+      } else if ((ld.transport_type || "bus") === "train") {
+        if (!(ld.direction || "").trim()) { alert("Zadejte směr (cílovou zastávku)."); return; }
+        num = this._trainKey(ld.direction, ld.train_category || "");
+        if (this._data.lines[num]) {
+          alert("Vlaková linka tímto směrem a kategorií už existuje. Upravte ji v seznamu linek, nebo zvolte jinou kategorii (R/Sp).");
+          return;
+        }
+      } else {
+        num = root.querySelector("#le-num")?.value?.trim();
+        if (!num) { alert("Zadejte číslo linky."); return; }
+      }
+
       this._data.lines[num] = ld;
-      if (this._editorLine === "__new__") delete this._data._newLine;
+      if (isNew) delete this._data._newLine;
       this._editorLine = null;
       this._render();
     });
+  }
+
+  // Deterministic train line key: train_<direction-slug>[_<category>]
+  // (must produce the same keys as _train_key in __init__.py)
+  _trainKey(direction, category) {
+    const slug = (direction || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 30);
+    let key = "train" + (slug ? "_" + slug : "");
+    if (category) key += "_" + category.toLowerCase();
+    return key;
   }
 
   _syncFields() {
@@ -808,7 +852,7 @@ class MHDTimetablePanel extends HTMLElement {
   _getLineData() {
     if (this._editorLine === "__new__") {
       if (!this._data._newLine) this._data._newLine = {
-        transport_type: "bus", custom_stop: "",
+        transport_type: "bus", custom_stop: "", train_category: "",
         direction: "", route: "", valid_from: new Date().toISOString().slice(0, 10),
         schedule_types: ["workday", "saturday", "sunday"],
         workday: {}, saturday: {}, sunday: {}, holiday: {},
@@ -1121,18 +1165,18 @@ class MHDTimetablePanel extends HTMLElement {
       .type-chip input { display: none; }
 
       .ttype-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-      .ttype-chip {
+      .ttype-chip, .tcat-chip {
         display: flex; align-items: center; gap: 6px;
         padding: 6px 14px; border-radius: 20px; cursor: pointer;
         border: 2px solid var(--tc, #999);
         background: transparent; color: var(--tc, #999);
         font-size: 0.9em; font-weight: 600; transition: all 0.2s;
       }
-      .ttype-chip.active {
+      .ttype-chip.active, .tcat-chip.active {
         background: var(--tc, #999);
         color: #fff;
       }
-      .ttype-chip:hover:not(.active) { opacity: 0.75; }
+      .ttype-chip:hover:not(.active), .tcat-chip:hover:not(.active) { opacity: 0.75; }
 
       .sched-tabs {
         display: flex; flex-wrap: wrap; gap: 6px;

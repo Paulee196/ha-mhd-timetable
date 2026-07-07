@@ -128,6 +128,7 @@ class MHDNextDeparturesSensor(SensorEntity):
         self._attr_extra_state_attributes = {
             "stop": result["stop"],
             "entry_id": self._entry_id,
+            "timetable_domain": DOMAIN,
             "schedule_type": result["schedule_type"],
             "next_departures": departures,
             "routes": result["routes"],

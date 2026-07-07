@@ -534,6 +534,32 @@ class MHDTimetablePanel extends HTMLElement {
   _ttLabel(k)    { return this._t("tt_" + k); }
   _trainCats()   { return TRAIN_CATEGORIES[this._lang()] || []; }
 
+  _selectedEntry() {
+    return this._entries.find(e => e.entry_id === this._selectedId) || null;
+  }
+
+  _cardEntityId() {
+    const selected = this._selectedEntry();
+    if (selected?.entity_id) return selected.entity_id;
+
+    if (this._hass?.states && this._selectedId) {
+      const found = Object.keys(this._hass.states).find(id => {
+        const attr = this._hass.states[id]?.attributes || {};
+        return attr.entry_id === this._selectedId && (
+          attr.timetable_domain === "mhd_timetable" ||
+          Array.isArray(attr.next_departures) ||
+          Array.isArray(attr.routes)
+        );
+      });
+      if (found) return found;
+    }
+
+    const slug = (this._data?.stop || "nazev_zastavky")
+      .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    return `sensor.timetable_${slug}`;
+  }
+
   _schedColor(key) {
     if (key === "workday") return "blue";
     if (key === "saturday" || key === "sunday") return "yellow";
@@ -542,11 +568,7 @@ class MHDTimetablePanel extends HTMLElement {
   }
 
   _cardYaml() {
-    // Match HA's suggested sensor.timetable_<stop> entity id shape.
-    const slug = (this._data?.stop || "nazev_zastavky")
-      .toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
-      .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-    return `type: custom:ha-timetable-card\nentity: sensor.timetable_${slug}`;
+    return `type: custom:ha-timetable-card\nentity: ${this._cardEntityId()}`;
   }
 
   _vacationPeriods() { return this._data?.vacation_periods || []; }

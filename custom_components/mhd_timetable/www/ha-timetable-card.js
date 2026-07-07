@@ -1,7 +1,7 @@
 /**
  * Timetable Card – departure display for Home Assistant Lovelace
  */
-var MHD_CARD_VERSION = "0.12.1";
+var MHD_CARD_VERSION = "0.12.2";
 // The card is always loaded as an ES module (?v= set by __init__.py), so the
 // badge follows the installed version automatically; the constant is a fallback.
 try {
@@ -12,6 +12,7 @@ try {
 var MHD_I18N = {
   cs: {
     no_departures: "Žádné nadcházející spoje",
+    no_entity: "Vyberte senzor zastávky v editoru karty.",
     now: "Teď!", in_min: "za {0} min",
     line_word: "Linka",
     dep_text: "{0} - Směr {1} v {2}",
@@ -32,6 +33,7 @@ var MHD_I18N = {
   },
   sk: {
     no_departures: "Žiadne nadchádzajúce spoje",
+    no_entity: "Vyberte senzor zastávky v editore karty.",
     now: "Teraz!", in_min: "o {0} min",
     line_word: "Linka",
     dep_text: "{0} - Smer {1} o {2}",
@@ -52,6 +54,7 @@ var MHD_I18N = {
   },
   en: {
     no_departures: "No upcoming departures",
+    no_entity: "Select a stop sensor in the card editor.",
     now: "Now!", in_min: "in {0} min",
     line_word: "Line",
     dep_text: "{0} - To {1} at {2}",
@@ -72,6 +75,7 @@ var MHD_I18N = {
   },
   de: {
     no_departures: "Keine bevorstehenden Abfahrten",
+    no_entity: "Wählen Sie im Karteneditor einen Haltestellen-Sensor aus.",
     now: "Jetzt!", in_min: "in {0} Min.",
     line_word: "Linie",
     dep_text: "{0} - Richtung {1} um {2}",
@@ -92,6 +96,7 @@ var MHD_I18N = {
   },
   fr: {
     no_departures: "Aucun départ à venir",
+    no_entity: "Sélectionnez un capteur d'arrêt dans l'éditeur de carte.",
     now: "Maintenant !", in_min: "dans {0} min",
     line_word: "Ligne",
     dep_text: "{0} - Direction {1} à {2}",
@@ -112,6 +117,7 @@ var MHD_I18N = {
   },
   es: {
     no_departures: "Sin salidas próximas",
+    no_entity: "Seleccione un sensor de parada en el editor de la tarjeta.",
     now: "¡Ahora!", in_min: "en {0} min",
     line_word: "Línea",
     dep_text: "{0} - Dirección {1} a las {2}",
@@ -145,6 +151,50 @@ function mhdT(hass, key) {
   for (var i = 2; i < arguments.length; i++) s = s.replace("{" + (i - 2) + "}", arguments[i]);
   return s;
 }
+
+function mhdIsTimetableState(state) {
+  var attr = state && state.attributes ? state.attributes : {};
+  if (attr.timetable_domain === "mhd_timetable") return true;
+  if (!attr.entry_id || !attr.stop) return false;
+  return Array.isArray(attr.next_departures) ||
+    Array.isArray(attr.routes) ||
+    typeof attr.schedule_type === "string";
+}
+
+function mhdIsTimetableEntity(hass, entityId) {
+  if (!entityId || entityId.indexOf("sensor.") !== 0) return false;
+  var state = hass && hass.states ? hass.states[entityId] : null;
+  return mhdIsTimetableState(state) ||
+    entityId.indexOf("sensor.timetable_") === 0 ||
+    entityId.indexOf("sensor.mhd_") === 0;
+}
+
+function mhdFindTimetableEntity(hass, entities) {
+  if (!hass || !hass.states) return "";
+  entities = Array.isArray(entities) ? entities : [];
+  var ids = [];
+  var seen = {};
+  var add = function(id) {
+    if (id && hass.states[id] && !seen[id]) {
+      ids.push(id);
+      seen[id] = true;
+    }
+  };
+
+  (entities || []).forEach(function(entity) {
+    add(typeof entity === "string" ? entity : (entity && (entity.entity_id || entity.entity)));
+  });
+  Object.keys(hass.states).forEach(add);
+
+  return ids.find(function(id) {
+    return id.indexOf("sensor.") === 0 && mhdIsTimetableState(hass.states[id]);
+  }) || ids.find(function(id) {
+    return id.indexOf("sensor.timetable_") === 0;
+  }) || ids.find(function(id) {
+    return id.indexOf("sensor.mhd_") === 0;
+  }) || "";
+}
+
 class MHDTimetableCard extends HTMLElement {
   constructor() {
     super();
@@ -156,13 +206,20 @@ class MHDTimetableCard extends HTMLElement {
   }
 
   setConfig(config) {
-    if (!config.entity) throw new Error("entity is required");
-    this._config = config;
+    this._config = Object.assign({
+      departures_count: 3,
+      urgent_minutes: 5,
+      warning_minutes: 10,
+    }, config || {});
     this._render();
   }
 
   set hass(hass) {
     this._hass = hass;
+    if (this._config && !this._config.entity) {
+      var entity = mhdFindTimetableEntity(hass);
+      if (entity) this._config = Object.assign({}, this._config, { entity: entity });
+    }
     if (!this._popup) this._render();
   }
 
@@ -194,6 +251,13 @@ class MHDTimetableCard extends HTMLElement {
 
   _render() {
     if (!this._config || !this._hass) return;
+    if (!this._config.entity) {
+      this.shadowRoot.innerHTML = `
+        <style>${this._styles()}</style>
+        <ha-card><div class="empty">${mhdT(this._hass, "no_entity")}</div></ha-card>
+      `;
+      return;
+    }
 
     const state = this._hass.states[this._config.entity];
     const attr = state ? state.attributes : {};
@@ -400,16 +464,8 @@ class MHDTimetableCard extends HTMLElement {
     return document.createElement("ha-timetable-card-editor");
   }
 
-  static getStubConfig(hass) {
-    var entity = "";
-    if (hass) {
-      var found = Object.keys(hass.states).find(function(id) {
-        return id.indexOf("sensor.timetable_") === 0;
-      }) || Object.keys(hass.states).find(function(id) {
-        return id.indexOf("sensor.mhd_") === 0;
-      });
-      if (found) entity = found;
-    }
+  static getStubConfig(hass, entities) {
+    var entity = mhdFindTimetableEntity(hass, entities);
     return {
       entity: entity,
       departures_count: 3,
@@ -425,6 +481,10 @@ class MHDTimetableCard extends HTMLElement {
 class MHDTimetableCardEditor extends HTMLElement {
   setConfig(config) {
     this._config = Object.assign({}, config);
+    if (!this._config.entity && this._hass) {
+      var entity = mhdFindTimetableEntity(this._hass);
+      if (entity) this._config.entity = entity;
+    }
     if (!this.querySelector(".ew")) {
       this._render();
     } else {
@@ -434,8 +494,20 @@ class MHDTimetableCardEditor extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    var changed = false;
+    if (this._config && !this._config.entity) {
+      var entity = mhdFindTimetableEntity(hass);
+      if (entity) {
+        this._config = Object.assign({}, this._config, { entity: entity });
+        changed = true;
+      }
+    }
     var picker = this.querySelector("#mhd-ep");
-    if (picker) picker.hass = hass;
+    if (picker) {
+      picker.hass = hass;
+      picker.value = this._config?.entity || "";
+    }
+    if (changed) this._fire();
   }
 
   _fire() {
@@ -759,5 +831,17 @@ window.customCards.push({
   name: _mhdCcDict.ed_title,
   description: _mhdCcDict.cc_desc,
   preview: true,
+  getEntitySuggestion: function(hass, entityId) {
+    if (!mhdIsTimetableEntity(hass, entityId)) return null;
+    return {
+      config: {
+        type: "custom:ha-timetable-card",
+        entity: entityId,
+        departures_count: 3,
+        urgent_minutes: 5,
+        warning_minutes: 10,
+      },
+    };
+  },
   documentationURL: "https://github.com/Paulee196/ha-mhd-timetable",
 });

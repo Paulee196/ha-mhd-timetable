@@ -1,7 +1,7 @@
 /**
  * Timetable Card – departure display for Home Assistant Lovelace
  */
-var MHD_CARD_VERSION = "0.12.2";
+var MHD_CARD_VERSION = "0.12.3";
 // The card is always loaded as an ES module (?v= set by __init__.py), so the
 // badge follows the installed version automatically; the constant is a fallback.
 try {

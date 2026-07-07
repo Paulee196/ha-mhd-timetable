@@ -554,10 +554,7 @@ class MHDTimetablePanel extends HTMLElement {
       if (found) return found;
     }
 
-    const slug = (this._data?.stop || "nazev_zastavky")
-      .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-    return `sensor.timetable_${slug}`;
+    return null;
   }
 
   _schedColor(key) {
@@ -568,7 +565,9 @@ class MHDTimetablePanel extends HTMLElement {
   }
 
   _cardYaml() {
-    return `type: custom:ha-timetable-card\nentity: ${this._cardEntityId()}`;
+    const entityId = this._cardEntityId();
+    if (!entityId) return null;
+    return `type: custom:ha-timetable-card\nentity: ${entityId}`;
   }
 
   _vacationPeriods() { return this._data?.vacation_periods || []; }
@@ -803,6 +802,7 @@ class MHDTimetablePanel extends HTMLElement {
           <div class="help-step">${n}</div>
           <div>${this._t("help_" + n)}</div>
         </div>`).join("");
+    const cardYaml = this._cardYaml();
     return `
       <div class="help-box">
         <div class="help-title">${this._t("help_title")}</div>
@@ -812,11 +812,11 @@ class MHDTimetablePanel extends HTMLElement {
         <p style="font-size:0.9em;color:var(--primary-text-color);margin:0 0 10px;line-height:1.5">
           ${this._t("help_card_auto")}
         </p>
-        <p style="font-size:0.88em;color:var(--secondary-text-color);margin:0 0 8px">
+        ${cardYaml ? `<p style="font-size:0.88em;color:var(--secondary-text-color);margin:0 0 8px">
           ${this._t("help_card_hint")}
         </p>
-        <div class="help-code" id="help-card-yaml">${this._cardYaml()}</div>
-        <button class="help-copy-btn">${this._t("copy")}</button>
+        <div class="help-code" id="help-card-yaml">${cardYaml}</div>
+        <button class="help-copy-btn">${this._t("copy")}</button>` : ""}
       </div>`;
   }
 

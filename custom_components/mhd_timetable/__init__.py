@@ -121,7 +121,7 @@ def _panel_js_url() -> str:
     return f"{_STATIC_PATH}/{_PANEL_FILENAME}?v={_get_version()}"
 
 
-def _entry_entity_id(hass: HomeAssistant, entry_id: str, stop_name: str) -> str:
+def _entry_entity_id(hass: HomeAssistant, entry_id: str) -> str | None:
     try:
         from homeassistant.helpers import entity_registry as er
         registry = er.async_get(hass)
@@ -135,7 +135,16 @@ def _entry_entity_id(hass: HomeAssistant, entry_id: str, stop_name: str) -> str:
     except Exception as exc:
         _LOGGER.debug("Could not resolve timetable entity for %s: %s", entry_id, exc)
 
-    return _stop_entity_id(stop_name)
+    return None
+
+
+def _setup_message(template: str, stop_name: str, entity_id: str | None) -> str:
+    if entity_id:
+        return template.format(stop=stop_name, entity=entity_id)
+    return re.sub(r"\n[^\n]*:\n```yaml\n.*?\n```", "", template, flags=re.DOTALL).format(
+        stop=stop_name,
+        entity="",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -157,7 +166,7 @@ async def _ws_list_entries(
         entries.append({
             "entry_id": eid,
             "stop": stop,
-            "entity_id": _entry_entity_id(hass, eid, stop),
+            "entity_id": _entry_entity_id(hass, eid),
         })
     connection.send_result(msg["id"], entries)
 
@@ -177,7 +186,7 @@ async def _ws_list_entries_new(
         entries.append({
             "entry_id": eid,
             "stop": stop,
-            "entity_id": _entry_entity_id(hass, eid, stop),
+            "entity_id": _entry_entity_id(hass, eid),
         })
     connection.send_result(msg["id"], entries)
 
@@ -421,11 +430,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not data.get("lines"):
         from homeassistant.components.persistent_notification import async_create as pn_create
         notify = _NOTIFY_STRINGS[_ha_lang(hass)]
-        entity_id = _entry_entity_id(hass, entry.entry_id, entry.data["stop_name"])
+        entity_id = _entry_entity_id(hass, entry.entry_id)
         pn_create(
             hass,
             title=notify["title"],
-            message=notify["msg"].format(stop=entry.data["stop_name"], entity=entity_id),
+            message=_setup_message(notify["msg"], entry.data["stop_name"], entity_id),
             notification_id=f"ha_timetable_setup_{entry.entry_id}",
         )
 

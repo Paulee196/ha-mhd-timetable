@@ -1,4 +1,4 @@
-"""Config flow for MHD Jízdní řády."""
+"""Config flow for Timetables."""
 from __future__ import annotations
 
 import voluptuous as vol
@@ -47,7 +47,7 @@ class MHDOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        current = self._config_entry.data
+        current = {**self._config_entry.data, **self._config_entry.options}
         schema = vol.Schema({
             vol.Optional("output_path", default=current.get("output_path", "")): str,
         })

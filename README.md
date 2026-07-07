@@ -1,12 +1,12 @@
-# 🚌 Timetables (Jízdní řády) for Home Assistant
+# 🚌 Timetables for Home Assistant
 
-[![GitHub Release](https://img.shields.io/github/v/release/Paulee196/ha-mhd-timetable?style=flat-square)](https://github.com/Paulee196/ha-mhd-timetable/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/smarthome4u/ha-timetable?style=flat-square)](https://github.com/smarthome4u/ha-timetable/releases)
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
-[![Downloads](https://img.shields.io/github/downloads/Paulee196/ha-mhd-timetable/total?style=flat-square)](https://github.com/Paulee196/ha-mhd-timetable/releases)
+[![Downloads](https://img.shields.io/github/downloads/smarthome4u/ha-timetable/total?style=flat-square)](https://github.com/smarthome4u/ha-timetable/releases)
 
 Manage local public transport timetables entirely from the Home Assistant UI – built for stops and lines where **no realtime API is available**. Enter the departures once, and the integration takes care of workdays, weekends, public holidays and school vacations.
 
-[![Open your Home Assistant instance and add this repository to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Paulee196&repository=ha-mhd-timetable&category=integration)
+[![Open your Home Assistant instance and add this repository to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=smarthome4u&repository=ha-timetable&category=integration)
 [![Open your Home Assistant instance and start setting up the integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=mhd_timetable)
 
 ## ✨ Features
@@ -18,7 +18,8 @@ Manage local public transport timetables entirely from the Home Assistant UI –
 - **Multiple stops per card** – a line departing from a different stop (e.g. the railway station) is shown as a separate section with its own color thresholds
 - **5 schedule types**: workday, Saturday, Sunday, public holiday, vacations
 - **Public holidays detected automatically** from your Home Assistant country setting
-- **Vacation periods & schedule groups** – share one timetable across several periods (e.g. summer + Christmas)
+- **Vacation periods, yearly recurrence & schedule groups** – repeat fixed-date breaks yearly and share one timetable across several periods (e.g. summer + Christmas)
+- **Departure notifications** – send reminders via Home Assistant `notify.*` services for selected days, time windows and lines
 - **Correct after-midnight handling** – departures after midnight follow the next day's schedule
 - **Localized UI**: Čeština, Slovenčina, English, Deutsch, Français, Español – follows your Home Assistant language
 
@@ -26,8 +27,8 @@ Manage local public transport timetables entirely from the Home Assistant UI –
 
 ### HACS (recommended)
 
-1. HACS → ⋮ → **Custom repositories** → add `Paulee196/ha-mhd-timetable` (type: *Integration*)
-2. Search for **Jízdní řády / Timetables** and download it
+1. HACS → ⋮ → **Custom repositories** → add `smarthome4u/ha-timetable` (type: *Integration*)
+2. Search for **Timetables** and download it
 3. Restart Home Assistant
 4. **Settings → Devices & Services → Add Integration** → search for the integration and add your stop
 
@@ -38,7 +39,11 @@ Manage local public transport timetables entirely from the Home Assistant UI –
 
 ## 🚏 Setting up timetables
 
-Click the **🚌 Timetables** icon in the left sidebar. For each line you pick the transport type, direction, route and the departure times per day type – click an hour to expand the minute grid. Public holidays work out of the box; school vacations are defined in the *Vacations* tab and can be grouped under a shared schedule.
+Click the **🚌 Timetables** icon in the left sidebar. For each line you pick the transport type, direction, route and the departure times per day type – click an hour to expand the minute grid. Public holidays work out of the box; school vacations are defined in the *Vacations* tab, can repeat yearly on the same dates and can be grouped under a shared schedule.
+
+## 🔔 Departure notifications
+
+Open the **Notifications** tab in the sidebar editor to add departure reminders. Each rule can be enabled or disabled, limited to selected weekdays and a time window, filtered to one line or all lines, and sent through any Home Assistant notification service such as `notify.mobile_app_phone`.
 
 ## 🃏 Lovelace card
 
@@ -47,9 +52,18 @@ The card resource is registered automatically. On your dashboard choose **Edit �
 Manual YAML alternative:
 
 ```yaml
+type: custom:ha-timetable-card
+entity: sensor.timetable_your_stop
+```
+
+Legacy dashboards can keep using the old card type:
+
+```yaml
 type: custom:mhd-timetable-card
 entity: sensor.mhd_your_stop
 ```
+
+On startup the integration migrates storage-based Lovelace dashboards from `custom:mhd-timetable-card` to `custom:ha-timetable-card` and renames legacy `sensor.mhd_*` entities to `sensor.timetable_*` when the target entity ID is free. The technical `mhd_timetable` integration domain remains as a compatibility anchor for existing Home Assistant config entries.
 
 ### Card options
 
@@ -86,8 +100,20 @@ Timetables are stored via the HA Store and can optionally be exported to JSON:
 ```json
 {
   "stop": "Škola SNP",
+  "notifications": [
+    {
+      "label": "Morning bus",
+      "enabled": true,
+      "notify_service": "notify.mobile_app_phone",
+      "minutes_before": 10,
+      "days": [0, 1, 2, 3, 4],
+      "start_time": "06:00",
+      "end_time": "08:00",
+      "line_id": "27"
+    }
+  ],
   "vacation_periods": [
-    { "label": "Summer break", "start": "2026-07-01", "end": "2026-08-31" }
+    { "label": "Summer break", "start": "2026-07-01", "end": "2026-08-31", "repeat": "yearly" }
   ],
   "lines": {
     "27": {
@@ -123,11 +149,11 @@ Timetables are stored via the HA Store and can optionally be exported to JSON:
 <details>
 <summary>🇨🇿 <strong>Rychlý start česky</strong></summary>
 
-1. **HACS** → Custom repositories → přidejte `Paulee196/ha-mhd-timetable` (Integration), stáhněte a restartujte HA
-2. **Nastavení → Zařízení a služby → Přidat integraci → Jízdní řády** – zadejte název zastávky
-3. V levém menu klikněte na **🚌 Jízdní řády** a přidejte spoje – typ dopravy, směr a časy odjezdů
-4. Na dashboardu zvolte **Upravit → Přidat kartu** a vyhledejte **Jízdní řády** – senzor se doplní sám
+1. **HACS** → Custom repositories → přidejte `smarthome4u/ha-timetable` (Integration), stáhněte a restartujte HA
+2. **Nastavení → Zařízení a služby → Přidat integraci → Timetables** – zadejte název zastávky
+3. V levém menu klikněte na **🚌 Timetables** a přidejte spoje – typ dopravy, směr a časy odjezdů
+4. Na dashboardu zvolte **Upravit → Přidat kartu** a vyhledejte **Timetables** – senzor se doplní sám
 
-Vlaky nepotřebují číslo linky – stačí směr, volitelně kategorie (R/Sp/Ex). Spoj z jiné zastávky (např. vlakové nádraží) označte v editoru zaškrtnutím *Jede z jiné zastávky*. Státní svátky se rozpoznají automaticky, prázdniny definujete v záložce *Prázdniny*.
+Vlaky nepotřebují číslo linky – stačí směr, volitelně kategorie (R/Sp/Ex). Spoj z jiné zastávky (např. vlakové nádraží) označte v editoru zaškrtnutím *Jede z jiné zastávky*. Státní svátky se rozpoznají automaticky, prázdniny definujete v záložce *Prázdniny* a můžete je nastavit jako opakované.
 
 </details>

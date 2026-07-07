@@ -1,7 +1,7 @@
-"""MHD sensor – next departures from a stop."""
+"""Timetable sensor - next departures from a stop."""
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
 from zoneinfo import ZoneInfo
 
@@ -10,6 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.util import slugify
 
 from .const import DOMAIN
 
@@ -29,6 +30,48 @@ def _is_public_holiday(country: str, today: date) -> bool:
         return False
 
 
+def _safe_date(year: int, month: int, day: int) -> date:
+    import calendar
+
+    last_day = calendar.monthrange(year, month)[1]
+    return date(year, month, min(day, last_day))
+
+
+def _matches_yearly_period(start: date, end: date, today: date) -> bool:
+    for start_year in (today.year, today.year - 1):
+        if start_year < start.year:
+            continue
+        occurrence_start = _safe_date(start_year, start.month, start.day)
+        occurrence_end = _safe_date(
+            start_year + (end.year - start.year),
+            end.month,
+            end.day,
+        )
+        if occurrence_start <= today <= occurrence_end:
+            return True
+    return False
+
+
+def _matches_vacation_period(period: dict, today: date) -> bool:
+    try:
+        start = date.fromisoformat(period["start"])
+        end = date.fromisoformat(period["end"])
+    except (KeyError, TypeError, ValueError):
+        return False
+
+    if end < start:
+        return False
+
+    repeat = str(period.get("repeat") or "none").lower()
+    if repeat in ("", "none", "false"):
+        return start <= today <= end
+
+    if repeat == "yearly":
+        return _matches_yearly_period(start, end, today)
+
+    return start <= today <= end
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     sensor = MHDNextDeparturesSensor(hass, entry)
     async_add_entities([sensor])
@@ -43,9 +86,11 @@ class MHDNextDeparturesSensor(SensorEntity):
         self._entry = entry
         self._entry_id = entry.entry_id
         self._attr_unique_id = f"mhd_timetable_{entry.entry_id}"
-        self._attr_name = f"MHD {entry.data['stop_name']}"
+        self._attr_name = f"Timetable {entry.data['stop_name']}"
+        self._attr_suggested_object_id = f"timetable_{slugify(entry.data['stop_name'])}"
         self._attr_native_value = _lang_strings(hass)["loading"]
         self._attr_extra_state_attributes = {}
+        self._sent_notifications: dict[str, datetime] = {}
         self._tz = ZoneInfo(hass.config.time_zone)
 
     async def async_added_to_hass(self) -> None:
@@ -69,6 +114,7 @@ class MHDNextDeparturesSensor(SensorEntity):
         result = _compute_next_departures(data, now, country, strings)
 
         departures = result["next_departures"]
+        await self._async_send_notifications(data, departures, now, strings)
         if not departures:
             self._attr_native_value = strings["none"]
         else:
@@ -99,6 +145,45 @@ class MHDNextDeparturesSensor(SensorEntity):
         }
         self.async_write_ha_state()
 
+    async def _async_send_notifications(
+        self,
+        data: dict,
+        departures: list[dict],
+        now: datetime,
+        strings: dict,
+    ) -> None:
+        rules = data.get("notifications") or []
+        if not rules:
+            return
+
+        self._prune_sent_notifications(now)
+        for rule in rules:
+            if not _notification_rule_active(rule, now):
+                continue
+            for departure in departures:
+                if not _notification_matches_departure(rule, departure):
+                    continue
+                sent_key = _notification_sent_key(rule, departure)
+                if sent_key in self._sent_notifications:
+                    continue
+                if await _async_send_departure_notification(
+                    self._hass,
+                    rule,
+                    departure,
+                    data.get("stop", ""),
+                    strings,
+                ):
+                    self._sent_notifications[sent_key] = now
+                break
+
+    def _prune_sent_notifications(self, now: datetime) -> None:
+        cutoff = now - timedelta(hours=30)
+        self._sent_notifications = {
+            key: sent_at
+            for key, sent_at in self._sent_notifications.items()
+            if sent_at >= cutoff
+        }
+
 
 def _get_schedule_type(data: dict, today: date, country: str) -> str:
     if _is_public_holiday(country, today):
@@ -106,15 +191,10 @@ def _get_schedule_type(data: dict, today: date, country: str) -> str:
 
     if today.weekday() < 5:
         for period in data.get("vacation_periods", []):
-            try:
-                start = date.fromisoformat(period["start"])
-                end = date.fromisoformat(period["end"])
-                if start <= today <= end and period.get("id"):
-                    # Use group schedule if assigned, otherwise period's own schedule
-                    key_id = period.get("group_id") or period["id"]
-                    return f"vacation_{key_id}"
-            except (KeyError, ValueError):
-                pass
+            if period.get("id") and _matches_vacation_period(period, today):
+                # Use group schedule if assigned, otherwise period's own schedule
+                key_id = period.get("group_id") or period["id"]
+                return f"vacation_{key_id}"
 
     if today.weekday() < 5:
         return "workday"
@@ -172,6 +252,138 @@ def _lang_strings(hass: HomeAssistant) -> dict:
     return _STRINGS.get(lang, _STRINGS["en"])
 
 
+def _parse_time(value: str | None) -> time | None:
+    if not value:
+        return None
+    try:
+        hour, minute = str(value).split(":", 1)
+        return time(int(hour), int(minute))
+    except (TypeError, ValueError):
+        return None
+
+
+def _time_in_range(now_time: time, start_value: str | None, end_value: str | None) -> bool:
+    start = _parse_time(start_value)
+    end = _parse_time(end_value)
+    if start is None and end is None:
+        return True
+    if start is None:
+        return now_time <= end
+    if end is None:
+        return now_time >= start
+    if start <= end:
+        return start <= now_time <= end
+    return now_time >= start or now_time <= end
+
+
+def _notification_days(rule: dict) -> set[int]:
+    days = rule.get("days")
+    if not isinstance(days, list) or not days:
+        return set(range(7))
+    result: set[int] = set()
+    for day in days:
+        try:
+            parsed = int(day)
+        except (TypeError, ValueError):
+            continue
+        if 0 <= parsed <= 6:
+            result.add(parsed)
+    return result or set(range(7))
+
+
+def _notification_minutes_before(rule: dict) -> int:
+    try:
+        return max(1, min(240, int(rule.get("minutes_before", 10))))
+    except (TypeError, ValueError):
+        return 10
+
+
+def _notification_rule_active(rule: dict, now: datetime) -> bool:
+    if rule.get("enabled") is False:
+        return False
+    service = str(rule.get("notify_service") or "").strip()
+    if not service:
+        return False
+    if now.weekday() not in _notification_days(rule):
+        return False
+    return _time_in_range(now.time(), rule.get("start_time"), rule.get("end_time"))
+
+
+def _notification_matches_departure(rule: dict, departure: dict) -> bool:
+    minutes_until = departure.get("minutes_until")
+    if not isinstance(minutes_until, int):
+        return False
+    if minutes_until <= 0 or minutes_until > _notification_minutes_before(rule):
+        return False
+
+    line_id = str(rule.get("line_id") or "").strip()
+    if line_id and line_id != str(departure.get("line_id") or ""):
+        return False
+
+    return True
+
+
+def _notification_sent_key(rule: dict, departure: dict) -> str:
+    rule_id = str(rule.get("id") or rule.get("label") or "rule")
+    return "|".join([
+        rule_id,
+        str(departure.get("departure_at") or departure.get("time") or ""),
+        str(departure.get("line_id") or ""),
+        str(departure.get("stop") or ""),
+    ])
+
+
+def _notify_service_parts(value: str) -> tuple[str, str] | None:
+    service = value.strip()
+    if not service:
+        return None
+    if "." in service:
+        domain, service_name = service.split(".", 1)
+    else:
+        domain, service_name = "notify", service
+    if not domain or not service_name:
+        return None
+    return domain, service_name
+
+
+async def _async_send_departure_notification(
+    hass: HomeAssistant,
+    rule: dict,
+    departure: dict,
+    home_stop: str,
+    strings: dict,
+) -> bool:
+    service_parts = _notify_service_parts(str(rule.get("notify_service") or ""))
+    if service_parts is None:
+        return False
+
+    domain, service = service_parts
+    line_prefix = (
+        departure["line"]
+        if departure.get("transport_type") == "train"
+        else f"{strings['line']} {departure['line']}"
+    )
+    stop = departure.get("stop") or home_stop
+    title = str(rule.get("label") or "Timetable reminder")
+    message = (
+        f"{line_prefix} - {departure['direction']} "
+        f"{departure['time']} ({departure['minutes_until']} min)"
+    )
+    if stop:
+        message += f" - {stop}"
+
+    try:
+        await hass.services.async_call(
+            domain,
+            service,
+            {"title": title, "message": message},
+            blocking=False,
+        )
+        return True
+    except Exception:
+        return False
+
+
 def _effective_schedule(line_data: dict, schedule_type: str) -> str | None:
     """Resolve schedule key for a line incl. fallback (holiday→sunday, vacation→workday)."""
     fallback: dict[str, str] = {"holiday": "sunday"}
@@ -221,6 +433,8 @@ def _compute_next_departures(data: dict, now: datetime, country: str = "CZ", str
             next_buses.append(
                 {
                     "minutes_until": int((dt - now).total_seconds() / 60),
+                    "departure_at": dt.isoformat(),
+                    "line_id": line_num,
                     "line": line_display,
                     "time": dt.strftime("%H:%M"),
                     "direction": direction,

@@ -35,27 +35,27 @@ _ENTITY_PREFIX = "timetable"
 _LEGACY_ENTITY_PREFIX = "mhd"
 
 _PANEL_TITLES = {
-    "cs": "Timetables", "sk": "Timetables", "en": "Timetables",
-    "de": "Timetables", "fr": "Timetables", "es": "Timetables",
+    "cs": "Jízdní řády", "sk": "Cestovné poriadky", "en": "Timetables",
+    "de": "Fahrpläne", "fr": "Horaires", "es": "Horarios",
 }
 
 _NOTIFY_STRINGS = {
     "cs": {
-        "title": "Timetables - zastávka přidána",
+        "title": "Jízdní řády - zastávka přidána",
         "msg": (
             "Zastávka **{stop}** byla úspěšně nakonfigurována.\n\n"
             "**Jak přidat spoje:**\n"
-            "Klikněte na ikonu 🚌 **Timetables** v levém postranním panelu.\n\n"
+            "Klikněte na ikonu 🚌 **Jízdní řády** v levém postranním panelu.\n\n"
             "Nebo přidejte kartu do dashboardu:\n"
             "```yaml\ntype: custom:ha-timetable-card\nentity: {entity}\n```"
         ),
     },
     "sk": {
-        "title": "Timetables - zastávka pridaná",
+        "title": "Cestovné poriadky - zastávka pridaná",
         "msg": (
             "Zastávka **{stop}** bola úspešne nakonfigurovaná.\n\n"
             "**Ako pridať spoje:**\n"
-            "Kliknite na ikonu 🚌 **Timetables** v ľavom bočnom paneli.\n\n"
+            "Kliknite na ikonu 🚌 **Cestovné poriadky** v ľavom bočnom paneli.\n\n"
             "Alebo pridajte kartu do dashboardu:\n"
             "```yaml\ntype: custom:ha-timetable-card\nentity: {entity}\n```"
         ),
@@ -71,31 +71,31 @@ _NOTIFY_STRINGS = {
         ),
     },
     "de": {
-        "title": "Timetables - Haltestelle hinzugefügt",
+        "title": "Fahrpläne - Haltestelle hinzugefügt",
         "msg": (
             "Die Haltestelle **{stop}** wurde erfolgreich konfiguriert.\n\n"
             "**Abfahrten hinzufügen:**\n"
-            "Klicken Sie auf das 🚌 **Timetables**-Symbol in der linken Seitenleiste.\n\n"
+            "Klicken Sie auf das 🚌 **Fahrpläne**-Symbol in der linken Seitenleiste.\n\n"
             "Oder fügen Sie die Karte einem Dashboard hinzu:\n"
             "```yaml\ntype: custom:ha-timetable-card\nentity: {entity}\n```"
         ),
     },
     "fr": {
-        "title": "Timetables - arrêt ajouté",
+        "title": "Horaires - arrêt ajouté",
         "msg": (
             "L'arrêt **{stop}** a été configuré avec succès.\n\n"
             "**Comment ajouter des départs :**\n"
-            "Cliquez sur l'icône 🚌 **Timetables** dans la barre latérale gauche.\n\n"
+            "Cliquez sur l'icône 🚌 **Horaires** dans la barre latérale gauche.\n\n"
             "Ou ajoutez la carte à un tableau de bord :\n"
             "```yaml\ntype: custom:ha-timetable-card\nentity: {entity}\n```"
         ),
     },
     "es": {
-        "title": "Timetables - parada añadida",
+        "title": "Horarios - parada añadida",
         "msg": (
             "La parada **{stop}** se configuró correctamente.\n\n"
             "**Cómo añadir salidas:**\n"
-            "Haga clic en el icono 🚌 **Timetables** en la barra lateral izquierda.\n\n"
+            "Haga clic en el icono 🚌 **Horarios** en la barra lateral izquierda.\n\n"
             "O añada la tarjeta a un panel:\n"
             "```yaml\ntype: custom:ha-timetable-card\nentity: {entity}\n```"
         ),

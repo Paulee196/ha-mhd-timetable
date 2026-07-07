@@ -1,7 +1,7 @@
 /**
  * Timetable Card – departure display for Home Assistant Lovelace
  */
-var MHD_CARD_VERSION = "0.12.0";
+var MHD_CARD_VERSION = "0.12.1";
 // The card is always loaded as an ES module (?v= set by __init__.py), so the
 // badge follows the installed version automatically; the constant is a fallback.
 try {
@@ -18,7 +18,7 @@ var MHD_I18N = {
     popup_title: "{0} - Směr {1}",
     departure_at: "Odjezd v <strong>{0}</strong>",
     no_route: "Trasa není k dispozici.",
-    ed_title: "Timetables",
+    ed_title: "Jízdní řády",
     sec_stop: "Zastávka", sensor_label: "Senzor zastávky",
     sensor_hint: "Senzor zastávky vytvořený doplňkem.",
     custom_name: "Vlastní název zastávky", custom_name_ph: "Ponechte prázdné = název z integrace",
@@ -38,7 +38,7 @@ var MHD_I18N = {
     popup_title: "{0} - Smer {1}",
     departure_at: "Odchod o <strong>{0}</strong>",
     no_route: "Trasa nie je k dispozícii.",
-    ed_title: "Timetables",
+    ed_title: "Cestovné poriadky",
     sec_stop: "Zastávka", sensor_label: "Senzor zastávky",
     sensor_hint: "Senzor zastávky vytvorený doplnkom.",
     custom_name: "Vlastný názov zastávky", custom_name_ph: "Nechajte prázdne = názov z integrácie",
@@ -78,7 +78,7 @@ var MHD_I18N = {
     popup_title: "{0} - Richtung {1}",
     departure_at: "Abfahrt um <strong>{0}</strong>",
     no_route: "Strecke nicht verfügbar.",
-    ed_title: "Timetables",
+    ed_title: "Fahrpläne",
     sec_stop: "Haltestelle", sensor_label: "Haltestellen-Sensor",
     sensor_hint: "Von der Integration erstellter Haltestellen-Sensor.",
     custom_name: "Eigener Haltestellenname", custom_name_ph: "Leer lassen = Name aus der Integration",
@@ -98,7 +98,7 @@ var MHD_I18N = {
     popup_title: "{0} - Direction {1}",
     departure_at: "Départ à <strong>{0}</strong>",
     no_route: "Itinéraire non disponible.",
-    ed_title: "Timetables",
+    ed_title: "Horaires",
     sec_stop: "Arrêt", sensor_label: "Capteur de l'arrêt",
     sensor_hint: "Capteur de l'arrêt créé par l'intégration.",
     custom_name: "Nom personnalisé de l'arrêt", custom_name_ph: "Laisser vide = nom de l'intégration",
@@ -118,7 +118,7 @@ var MHD_I18N = {
     popup_title: "{0} - Dirección {1}",
     departure_at: "Salida a las <strong>{0}</strong>",
     no_route: "Recorrido no disponible.",
-    ed_title: "Timetables",
+    ed_title: "Horarios",
     sec_stop: "Parada", sensor_label: "Sensor de la parada",
     sensor_hint: "Sensor de la parada creado por la integración.",
     custom_name: "Nombre personalizado de la parada", custom_name_ph: "Dejar vacío = nombre de la integración",

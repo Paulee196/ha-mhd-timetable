@@ -86,7 +86,7 @@ class MHDNextDeparturesSensor(SensorEntity):
         self._entry = entry
         self._entry_id = entry.entry_id
         self._attr_unique_id = f"mhd_timetable_{entry.entry_id}"
-        self._attr_name = f"Timetable {entry.data['stop_name']}"
+        self._attr_name = _lang_strings(hass)["sensor_name"].format(stop=entry.data["stop_name"])
         self._attr_suggested_object_id = f"timetable_{slugify(entry.data['stop_name'])}"
         self._attr_native_value = _lang_strings(hass)["loading"]
         self._attr_extra_state_attributes = {}
@@ -209,40 +209,52 @@ _TT_CANONICAL = {"vlak": "train", "tramvaj": "tram", "trolejbus": "trolleybus", 
 # Sensor state strings per HA language (fallback: en)
 _STRINGS = {
     "cs": {
+        "sensor_name": "Jízdní řád {stop}",
         "line": "Linka", "train": "Vlak",
         "state": "{line} - Směr {direction} v {time} (za {min} min)",
         "next": "{line} - Směr {direction} {time} ({min} min)",
         "none": "Žádné spoje", "loading": "Načítání...",
+        "notification_title": "Upozornění na odjezd",
     },
     "sk": {
+        "sensor_name": "Cestovný poriadok {stop}",
         "line": "Linka", "train": "Vlak",
         "state": "{line} - Smer {direction} o {time} (o {min} min)",
         "next": "{line} - Smer {direction} {time} ({min} min)",
         "none": "Žiadne spoje", "loading": "Načítavanie...",
+        "notification_title": "Upozornenie na odchod",
     },
     "en": {
+        "sensor_name": "Timetable {stop}",
         "line": "Line", "train": "Train",
         "state": "{line} - To {direction} at {time} (in {min} min)",
         "next": "{line} - To {direction} {time} ({min} min)",
         "none": "No departures", "loading": "Loading...",
+        "notification_title": "Timetable reminder",
     },
     "de": {
+        "sensor_name": "Fahrplan {stop}",
         "line": "Linie", "train": "Zug",
         "state": "{line} - Richtung {direction} um {time} (in {min} Min.)",
         "next": "{line} - Richtung {direction} {time} ({min} Min.)",
         "none": "Keine Abfahrten", "loading": "Wird geladen...",
+        "notification_title": "Abfahrtserinnerung",
     },
     "fr": {
+        "sensor_name": "Horaires {stop}",
         "line": "Ligne", "train": "Train",
         "state": "{line} - Direction {direction} à {time} (dans {min} min)",
         "next": "{line} - Direction {direction} {time} ({min} min)",
         "none": "Aucun départ", "loading": "Chargement...",
+        "notification_title": "Rappel de départ",
     },
     "es": {
+        "sensor_name": "Horario {stop}",
         "line": "Línea", "train": "Tren",
         "state": "{line} - Dirección {direction} a las {time} (en {min} min)",
         "next": "{line} - Dirección {direction} {time} ({min} min)",
         "none": "Sin salidas", "loading": "Cargando...",
+        "notification_title": "Recordatorio de salida",
     },
 }
 
@@ -364,7 +376,7 @@ async def _async_send_departure_notification(
         else f"{strings['line']} {departure['line']}"
     )
     stop = departure.get("stop") or home_stop
-    title = str(rule.get("label") or "Timetable reminder")
+    title = str(rule.get("label") or strings["notification_title"])
     message = (
         f"{line_prefix} - {departure['direction']} "
         f"{departure['time']} ({departure['minutes_until']} min)"

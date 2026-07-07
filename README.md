@@ -150,9 +150,9 @@ Timetables are stored via the HA Store and can optionally be exported to JSON:
 <summary>🇨🇿 <strong>Rychlý start česky</strong></summary>
 
 1. **HACS** → Custom repositories → přidejte `Paulee196/ha-mhd-timetable` (Integration), stáhněte a restartujte HA
-2. **Nastavení → Zařízení a služby → Přidat integraci → Timetables** – zadejte název zastávky
-3. V levém menu klikněte na **🚌 Timetables** a přidejte spoje – typ dopravy, směr a časy odjezdů
-4. Na dashboardu zvolte **Upravit → Přidat kartu** a vyhledejte **Timetables** – senzor se doplní sám
+2. **Nastavení → Zařízení a služby → Přidat integraci → Jízdní řády** – zadejte název zastávky
+3. V levém menu klikněte na **🚌 Jízdní řády** a přidejte spoje – typ dopravy, směr a časy odjezdů
+4. Na dashboardu zvolte **Upravit → Přidat kartu** a vyhledejte **Jízdní řády** – senzor se doplní sám
 
 Vlaky nepotřebují číslo linky – stačí směr, volitelně kategorie (R/Sp/Ex). Spoj z jiné zastávky (např. vlakové nádraží) označte v editoru zaškrtnutím *Jede z jiné zastávky*. Státní svátky se rozpoznají automaticky, prázdniny definujete v záložce *Prázdniny* a můžete je nastavit jako opakované.
 

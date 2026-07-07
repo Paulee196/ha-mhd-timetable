@@ -759,5 +759,5 @@ window.customCards.push({
   name: _mhdCcDict.ed_title,
   description: _mhdCcDict.cc_desc,
   preview: true,
-  documentationURL: "https://github.com/smarthome4u/ha-timetable",
+  documentationURL: "https://github.com/Paulee196/ha-mhd-timetable",
 });

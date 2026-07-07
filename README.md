@@ -1,12 +1,12 @@
 # 🚌 Timetables for Home Assistant
 
-[![GitHub Release](https://img.shields.io/github/v/release/smarthome4u/ha-timetable?style=flat-square)](https://github.com/smarthome4u/ha-timetable/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/Paulee196/ha-mhd-timetable?style=flat-square)](https://github.com/Paulee196/ha-mhd-timetable/releases)
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
-[![Downloads](https://img.shields.io/github/downloads/smarthome4u/ha-timetable/total?style=flat-square)](https://github.com/smarthome4u/ha-timetable/releases)
+[![Downloads](https://img.shields.io/github/downloads/Paulee196/ha-mhd-timetable/total?style=flat-square)](https://github.com/Paulee196/ha-mhd-timetable/releases)
 
 Manage local public transport timetables entirely from the Home Assistant UI – built for stops and lines where **no realtime API is available**. Enter the departures once, and the integration takes care of workdays, weekends, public holidays and school vacations.
 
-[![Open your Home Assistant instance and add this repository to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=smarthome4u&repository=ha-timetable&category=integration)
+[![Open your Home Assistant instance and add this repository to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Paulee196&repository=ha-mhd-timetable&category=integration)
 [![Open your Home Assistant instance and start setting up the integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=mhd_timetable)
 
 ## ✨ Features
@@ -27,7 +27,7 @@ Manage local public transport timetables entirely from the Home Assistant UI –
 
 ### HACS (recommended)
 
-1. HACS → ⋮ → **Custom repositories** → add `smarthome4u/ha-timetable` (type: *Integration*)
+1. HACS → ⋮ → **Custom repositories** → add `Paulee196/ha-mhd-timetable` (type: *Integration*)
 2. Search for **Timetables** and download it
 3. Restart Home Assistant
 4. **Settings → Devices & Services → Add Integration** → search for the integration and add your stop
@@ -149,7 +149,7 @@ Timetables are stored via the HA Store and can optionally be exported to JSON:
 <details>
 <summary>🇨🇿 <strong>Rychlý start česky</strong></summary>
 
-1. **HACS** → Custom repositories → přidejte `smarthome4u/ha-timetable` (Integration), stáhněte a restartujte HA
+1. **HACS** → Custom repositories → přidejte `Paulee196/ha-mhd-timetable` (Integration), stáhněte a restartujte HA
 2. **Nastavení → Zařízení a služby → Přidat integraci → Timetables** – zadejte název zastávky
 3. V levém menu klikněte na **🚌 Timetables** a přidejte spoje – typ dopravy, směr a časy odjezdů
 4. Na dashboardu zvolte **Upravit → Přidat kartu** a vyhledejte **Timetables** – senzor se doplní sám

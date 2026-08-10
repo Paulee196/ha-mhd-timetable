@@ -312,12 +312,51 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     except Exception as exc:
         _LOGGER.warning("Could not register timetable static path: %s", exc)
 
-    # Update Lovelace resource registration immediately - the Store is a plain JSON
-    # file and can be written at any point. Doing it here (before HTTP serves any
-    # requests) ensures the browser always gets the versioned URL on first load.
+    # Load the card unconditionally on every frontend page via the frontend's
+    # own extra-module-url mechanism (the same one core integrations use).
+    # This is the primary registration path: it does not depend on Lovelace
+    # running in storage mode, does not race against the lazily-loaded
+    # Lovelace resource collection, and works identically for every user
+    # regardless of how their dashboards are configured.
+    await _async_register_extra_module_url(hass, _card_js_url())
+
+    # Also register it as a Lovelace "resource" so it shows up (and can be
+    # managed) under Settings -> Dashboards -> Resources for storage-mode
+    # users. This is a secondary, best-effort registration - the card works
+    # even if this part fails or silently does nothing (e.g. YAML-mode
+    # dashboards), because of the registration above.
     await _async_register_lovelace_resource(hass, _card_js_url())
 
     return True
+
+
+async def _async_register_extra_module_url(hass: HomeAssistant, url: str) -> None:
+    """Ensure the card JS module is injected into every frontend page load.
+
+    Unlike a Lovelace "resource", this does not depend on Lovelace's storage
+    mode or on any lazily-loaded in-memory collection being in sync with
+    disk - Home Assistant reads this URL set directly every time it renders
+    the frontend index page, so it is available on the very first load.
+    """
+    try:
+        from homeassistant.components.frontend import add_extra_js_url, remove_extra_js_url
+    except ImportError as exc:
+        _LOGGER.warning("Could not import frontend module helpers: %s", exc)
+        return
+
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    previous_url = domain_data.get("_extra_js_url")
+    if previous_url == url:
+        return
+
+    try:
+        if previous_url:
+            remove_extra_js_url(hass, previous_url)
+        add_extra_js_url(hass, url)
+        domain_data["_extra_js_url"] = url
+        _LOGGER.info("Timetable card module registered for every frontend page: %s", url)
+    except Exception as exc:
+        _LOGGER.warning("Could not register frontend module url %s: %s", url, exc)
 
 
 def _lovelace_resource_collection(hass: HomeAssistant) -> Any | None:

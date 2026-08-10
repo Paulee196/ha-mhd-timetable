@@ -8,6 +8,7 @@ import pathlib
 import re
 import unicodedata
 import uuid
+from typing import Any
 
 import voluptuous as vol
 from homeassistant.components import websocket_api
@@ -319,9 +320,90 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     return True
 
 
+def _lovelace_resource_collection(hass: HomeAssistant) -> Any | None:
+    """Return the live storage-mode Lovelace resources collection, if any.
+
+    Lovelace resources are lazily loaded into memory on first access
+    (typically the first `lovelace/resources` websocket request from a
+    browser). Writing straight to the `lovelace_resources` Store file races
+    against that lazy load: if a frontend client requests the resource list
+    before our own async_setup runs, the in-memory collection is cached
+    without our card and never refreshed until the next full restart. Using
+    the collection API keeps the on-disk file and the live in-memory list
+    (and any already-connected frontend) in sync.
+    """
+    try:
+        from homeassistant.components.lovelace.const import LOVELACE_DATA, MODE_STORAGE
+    except ImportError:
+        return None
+
+    lovelace_data = hass.data.get(LOVELACE_DATA)
+    if lovelace_data is None:
+        return None
+    if getattr(lovelace_data, "resource_mode", None) != MODE_STORAGE:
+        return None
+    return getattr(lovelace_data, "resources", None)
+
+
+async def _async_register_via_collection(collection: Any, url: str, filenames: tuple[str, str]) -> None:
+    """Register the card JS resource through Home Assistant's own collection API."""
+    await collection.async_get_info()  # ensures the collection has loaded from storage
+    items = collection.async_items() or []
+
+    all_for_file = [
+        i for i in items
+        if any(filename in i.get("url", "") for filename in filenames)
+    ]
+    hacs_entries = [i for i in all_for_file if "/hacsfiles/" in i.get("url", "")]
+    our_entries = [i for i in all_for_file if i not in hacs_entries]
+    new_hacs_entries = [i for i in hacs_entries if _CARD_FILENAME in i.get("url", "")]
+    legacy_hacs_entries = [i for i in hacs_entries if _LEGACY_CARD_FILENAME in i.get("url", "")]
+
+    for item in legacy_hacs_entries:
+        await collection.async_delete_item(item["id"])
+
+    if new_hacs_entries:
+        # HACS manages this file – remove any leftover registrations from us
+        # so there is no double-load (HACS handles versioning via hacstag)
+        if our_entries:
+            for item in our_entries:
+                await collection.async_delete_item(item["id"])
+            _LOGGER.info("Removed duplicate timetable card registration (HACS manages it)")
+        elif legacy_hacs_entries:
+            _LOGGER.info("Removed legacy timetable card registration")
+        else:
+            _LOGGER.debug("HACS manages card JS registration, nothing to do")
+        return
+
+    # No HACS entry – manual install, maintain our own versioned registration
+    if len(our_entries) == 1 and our_entries[0].get("url") == url:
+        _LOGGER.debug("Lovelace resource up to date: %s", url)
+        return
+    for item in our_entries:
+        await collection.async_delete_item(item["id"])
+    await collection.async_create_item({"res_type": "module", "url": url})
+    _LOGGER.info("Lovelace resource registered: %s", url)
+
+
 async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> None:
     """Ensure exactly one correct registration for the card JS in Lovelace resources."""
     filenames = (_CARD_FILENAME, _LEGACY_CARD_FILENAME)
+
+    collection = _lovelace_resource_collection(hass)
+    if collection is not None:
+        try:
+            await _async_register_via_collection(collection, url, filenames)
+            return
+        except Exception as exc:
+            _LOGGER.warning(
+                "Could not register Lovelace resource via the live collection (%s), "
+                "falling back to direct storage write", exc
+            )
+
+    # Lovelace's storage collection isn't available yet (component not fully
+    # set up while our own async_setup runs). Falling back to a direct Store
+    # write is safe in that case: nobody could have requested
+    # `lovelace/resources` before Lovelace itself finished initializing.
     try:
         store = Store(hass, 1, "lovelace_resources")
         data = await store.async_load() or {"items": []}

@@ -1,7 +1,8 @@
 {
   "domain": "mhd_timetable",
   "name": "Timetables",
-  "version": "0.12.3",
+  "after_dependencies": ["frontend", "lovelace"],
+  "version": "0.12.4",
   "documentation": "https://github.com/Paulee196/ha-mhd-timetable",
   "issue_tracker": "https://github.com/Paulee196/ha-mhd-timetable/issues",
   "codeowners": [],

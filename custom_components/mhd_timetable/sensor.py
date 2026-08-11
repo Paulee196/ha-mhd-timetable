@@ -213,16 +213,29 @@ class MHDNextDeparturesSensor(SensorEntity):
         }
 
 
+def _base_schedule_type(day: date) -> str:
+    """The plain workday/saturday/sunday type for a date, ignoring holidays
+    and vacation periods - used both directly and as the fallback target
+    when a vacation-group schedule doesn't cover a given weekday."""
+    if day.weekday() < 5:
+        return "workday"
+    if day.weekday() == 5:
+        return "saturday"
+    return "sunday"
+
+
 def _get_schedule_type(data: dict, today: date, country: str) -> str:
     if _is_public_holiday(country, today):
         return "holiday"
 
-    if today.weekday() < 5:
-        for period in data.get("vacation_periods", []):
-            if period.get("id") and _matches_vacation_period(period, today):
-                # Use group schedule if assigned, otherwise period's own schedule
-                key_id = period.get("group_id") or period["id"]
-                return f"vacation_{key_id}"
+    # Vacation periods apply on every day of the week, not just Mon-Fri -
+    # a summer-break period commonly changes Saturday/Sunday service too
+    # (e.g. some weekend trips simply don't run during it).
+    for period in data.get("vacation_periods", []):
+        if period.get("id") and _matches_vacation_period(period, today):
+            # Use group schedule if assigned, otherwise period's own schedule
+            key_id = period.get("group_id") or period["id"]
+            return f"vacation_{key_id}"
 
     if today.weekday() < 5:
         return "workday"
@@ -424,11 +437,15 @@ async def _async_send_departure_notification(
         return False
 
 
-def _effective_schedule(line_data: dict, schedule_type: str) -> str | None:
-    """Resolve schedule key for a line incl. fallback (holiday→sunday, vacation→workday)."""
+def _effective_schedule(line_data: dict, schedule_type: str, base_type: str) -> str | None:
+    """Resolve schedule key for a line incl. fallback (holiday->sunday,
+    vacation->base_type). base_type is the plain workday/saturday/sunday
+    for the actual date in question, since a vacation-group schedule that
+    doesn't cover a given weekday must fall back to what that weekday
+    would normally run - not unconditionally to "workday"."""
     fallback: dict[str, str] = {"holiday": "sunday"}
     if schedule_type.startswith("vacation_"):
-        fallback[schedule_type] = "workday"
+        fallback[schedule_type] = base_type
     effective = schedule_type
     if effective not in line_data or not line_data.get(effective):
         effective = fallback.get(schedule_type, schedule_type)
@@ -440,10 +457,13 @@ def _effective_schedule(line_data: dict, schedule_type: str) -> str | None:
 def _compute_next_departures(data: dict, now: datetime, country: str = "CZ", strings: dict | None = None) -> dict:
     strings = strings or _STRINGS["en"]
     today = now.date()
+    tomorrow = today + timedelta(days=1)
     schedule_type = _get_schedule_type(data, today, country)
     # Departures after midnight must follow TOMORROW's schedule type
     # (Friday evening shows Saturday morning trips from the Saturday schedule).
-    tomorrow_type = _get_schedule_type(data, today + timedelta(days=1), country)
+    tomorrow_type = _get_schedule_type(data, tomorrow, country)
+    today_base = _base_schedule_type(today)
+    tomorrow_base = _base_schedule_type(tomorrow)
 
     next_buses: list[dict] = []
     routes: list[dict] = []
@@ -484,7 +504,7 @@ def _compute_next_departures(data: dict, now: datetime, country: str = "CZ", str
                 }
             )
 
-        effective = _effective_schedule(line_data, schedule_type)
+        effective = _effective_schedule(line_data, schedule_type, today_base)
         if effective:
             for hour_str, minutes in line_data[effective].items():
                 for entry in minutes:
@@ -495,7 +515,7 @@ def _compute_next_departures(data: dict, now: datetime, country: str = "CZ", str
                     if dt >= now and dt.strftime("%m-%d") not in skip_dates:
                         _add_departure(dt, override)
 
-        effective_tomorrow = _effective_schedule(line_data, tomorrow_type)
+        effective_tomorrow = _effective_schedule(line_data, tomorrow_type, tomorrow_base)
         if effective_tomorrow:
             base = now + timedelta(days=1)
             for hour_str, minutes in line_data[effective_tomorrow].items():

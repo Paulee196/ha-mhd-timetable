@@ -1,0 +1,24 @@
+name: Frontend module check
+
+on:
+  push:
+    paths:
+      - "custom_components/mhd_timetable/www/**"
+      - ".github/scripts/check-frontend-modules.mjs"
+      - ".github/workflows/frontend-check.yml"
+  pull_request:
+    paths:
+      - "custom_components/mhd_timetable/www/**"
+      - ".github/scripts/check-frontend-modules.mjs"
+      - ".github/workflows/frontend-check.yml"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Import the card and panel modules the way a browser would
+        run: node .github/scripts/check-frontend-modules.mjs

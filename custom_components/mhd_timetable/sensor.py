@@ -52,6 +52,24 @@ def _matches_yearly_period(start: date, end: date, today: date) -> bool:
     return False
 
 
+def _minute_parts(entry) -> tuple[int, str]:
+    """A minute entry is either a plain int (normal departure) or
+    {"m": int, "direction": str} for a departure that ends/continues
+    somewhere other than the line's usual direction (e.g. a short-turn
+    trip). Returns (minute, direction_override); override is "" when none.
+    """
+    if isinstance(entry, dict):
+        try:
+            minute = int(entry.get("m", 0))
+        except (TypeError, ValueError):
+            minute = 0
+        return minute, str(entry.get("direction") or "").strip()
+    try:
+        return int(entry), ""
+    except (TypeError, ValueError):
+        return 0, ""
+
+
 def _matches_vacation_period(period: dict, today: date) -> bool:
     try:
         start = date.fromisoformat(period["start"])
@@ -442,7 +460,7 @@ def _compute_next_departures(data: dict, now: datetime, country: str = "CZ", str
 
         routes.append({"line": line_display, "direction": direction, "route": route, "transport_type": transport_type, "stop": stop_name})
 
-        def _add_departure(dt: datetime) -> None:
+        def _add_departure(dt: datetime, direction_override: str = "") -> None:
             next_buses.append(
                 {
                     "minutes_until": int((dt - now).total_seconds() / 60),
@@ -450,7 +468,7 @@ def _compute_next_departures(data: dict, now: datetime, country: str = "CZ", str
                     "line_id": line_num,
                     "line": line_display,
                     "time": dt.strftime("%H:%M"),
-                    "direction": direction,
+                    "direction": direction_override or direction,
                     "route": route,
                     "transport_type": transport_type,
                     "stop": stop_name,
@@ -460,21 +478,23 @@ def _compute_next_departures(data: dict, now: datetime, country: str = "CZ", str
         effective = _effective_schedule(line_data, schedule_type)
         if effective:
             for hour_str, minutes in line_data[effective].items():
-                for minute in minutes:
+                for entry in minutes:
+                    minute, override = _minute_parts(entry)
                     dt = now.replace(
-                        hour=int(hour_str), minute=int(minute), second=0, microsecond=0
+                        hour=int(hour_str), minute=minute, second=0, microsecond=0
                     )
                     if dt >= now:
-                        _add_departure(dt)
+                        _add_departure(dt, override)
 
         effective_tomorrow = _effective_schedule(line_data, tomorrow_type)
         if effective_tomorrow:
             base = now + timedelta(days=1)
             for hour_str, minutes in line_data[effective_tomorrow].items():
-                for minute in minutes:
+                for entry in minutes:
+                    minute, override = _minute_parts(entry)
                     _add_departure(base.replace(
-                        hour=int(hour_str), minute=int(minute), second=0, microsecond=0
-                    ))
+                        hour=int(hour_str), minute=minute, second=0, microsecond=0
+                    ), override)
 
     next_buses.sort(key=lambda x: x["minutes_until"])
     return {

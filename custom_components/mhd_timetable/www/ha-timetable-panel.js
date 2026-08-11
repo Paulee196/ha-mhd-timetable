@@ -62,6 +62,10 @@ const I18N = {
     vac_tabs_empty: "Prázdninová období definujte v záložce <em>Prázdniny</em>.",
     grid_hint: "Kliknutím na hodinu rozbalíte minuty. Kliknutím na minutu ji přidáte nebo odeberete.",
     vac_grid_hint: "Jízdní řád pro <strong>{0}</strong>. Prázdné = použije se pracovní den.",
+    chip_note_btn_title: "Jiná konečná / poznámka k odjezdu",
+    chip_note_label: "Odjezd {0} – jiná konečná stanice",
+    chip_note_ph: "Např. Kukleny Albert (nepovinné)",
+    chip_note_clear: "Odebrat poznámku",
     add_line_btn: "Přidat spoj", save_line: "Uložit spoj", back: "← Zpět",
     enter_direction: "Zadejte směr (cílovou zastávku).",
     train_exists: "Vlakový spoj tímto směrem a kategorií už existuje. Upravte ho v seznamu spojů, nebo zvolte jinou kategorii.",
@@ -89,7 +93,7 @@ const I18N = {
     confirm_del_group: "Smazat skupinu \"{0}\"? Všechna nastavení rozvrhu pro tuto skupinu budou ztracena.",
     save_error: "Chyba při ukládání: ",
     help_title: "Jak to funguje",
-    help_1: "<strong>Spoje</strong> přidáte v záložce <em>Spoje</em>. U každého spoje zvolíte typ dopravy (🚌 autobus, 🚎 trolejbus, 🚋 tramvaj, 🚂 vlak), směr a časy odjezdů pro jednotlivé typy dnů pomocí záložek. Kliknutím na hodinu rozbalíte minuty a kliknutím na minutu ji přidáte nebo odeberete.",
+    help_1: "<strong>Spoje</strong> přidáte v záložce <em>Spoje</em>. U každého spoje zvolíte typ dopravy (🚌 autobus, 🚎 trolejbus, 🚋 tramvaj, 🚂 vlak), směr a časy odjezdů pro jednotlivé typy dnů pomocí záložek. Kliknutím na hodinu rozbalíte minuty a kliknutím na minutu ji přidáte nebo odeberete. U jednotlivého odjezdu můžete přes ✎ nastavit i jinou konečnou stanici, pokud daný spoj výjimečně nejede na běžnou trasu.",
     help_2: "<strong>Vlaky</strong> nepotřebují číslo linky – stačí směr. Volitelně doplníte kategorii (R, Sp, Ex) nebo označení linky. Pokud spoj jede z jiné zastávky (např. vlakové nádraží), zaškrtněte <em>Jede z jiné zastávky</em> – karta ji pak zobrazí jako samostatnou sekci s vlastními barvami odjezdů.",
     help_3: "<strong>Státní svátky</strong> jsou rozpoznány automaticky podle nastavení země v Home Assistant. Nemusíte je nikde vypisovat. V editoru spoje stačí nastavit záložku <em>Státní svátek</em>.",
     help_4: "<strong>Prázdninová období</strong> si definujete ručně v záložce <em>Prázdniny</em>. Zadáte název (např. Letní prázdniny), datum od–do a volitelně každoroční opakování stejných dat.",
@@ -128,6 +132,10 @@ const I18N = {
     vac_tabs_empty: "Prázdninové obdobia definujte v záložke <em>Prázdniny</em>.",
     grid_hint: "Kliknutím na hodinu rozbalíte minúty. Kliknutím na minútu ju pridáte alebo odoberiete.",
     vac_grid_hint: "Cestovný poriadok pre <strong>{0}</strong>. Prázdne = použije sa pracovný deň.",
+    chip_note_btn_title: "Iná konečná / poznámka k odchodu",
+    chip_note_label: "Odchod {0} – iná konečná stanica",
+    chip_note_ph: "Napr. Kukleny Albert (nepovinné)",
+    chip_note_clear: "Odobrať poznámku",
     add_line_btn: "Pridať spoj", save_line: "Uložiť spoj", back: "← Späť",
     enter_direction: "Zadajte smer (cieľovú zastávku).",
     train_exists: "Vlakový spoj týmto smerom a kategóriou už existuje. Upravte ho v zozname spojov, alebo zvoľte inú kategóriu.",
@@ -155,7 +163,7 @@ const I18N = {
     confirm_del_group: "Zmazať skupinu \"{0}\"? Všetky nastavenia rozvrhu pre túto skupinu budú stratené.",
     save_error: "Chyba pri ukladaní: ",
     help_title: "Ako to funguje",
-    help_1: "<strong>Spoje</strong> pridáte v záložke <em>Spoje</em>. Pri každom spoji zvolíte typ dopravy (🚌 autobus, 🚎 trolejbus, 🚋 električka, 🚂 vlak), smer a časy odchodov pre jednotlivé typy dní pomocou záložiek. Kliknutím na hodinu rozbalíte minúty a kliknutím na minútu ju pridáte alebo odoberiete.",
+    help_1: "<strong>Spoje</strong> pridáte v záložke <em>Spoje</em>. Pri každom spoji zvolíte typ dopravy (🚌 autobus, 🚎 trolejbus, 🚋 električka, 🚂 vlak), smer a časy odchodov pre jednotlivé typy dní pomocou záložiek. Kliknutím na hodinu rozbalíte minúty a kliknutím na minútu ju pridáte alebo odoberiete. Pri jednotlivom odchode môžete cez ✎ nastaviť aj inú konečnú stanicu, ak daný spoj výnimočne nejde na bežnú trasu.",
     help_2: "<strong>Vlaky</strong> nepotrebujú číslo linky – stačí smer. Voliteľne doplníte kategóriu (R, Zr, REX) alebo označenie linky. Ak spoj ide z inej zastávky (napr. železničná stanica), zaškrtnite <em>Ide z inej zastávky</em> – karta ju potom zobrazí ako samostatnú sekciu s vlastnými farbami odchodov.",
     help_3: "<strong>Štátne sviatky</strong> sú rozpoznané automaticky podľa nastavenia krajiny v Home Assistant. Nemusíte ich nikde vypisovať. V editore spoja stačí nastaviť záložku <em>Štátny sviatok</em>.",
     help_4: "<strong>Prázdninové obdobia</strong> si definujete ručne v záložke <em>Prázdniny</em>. Zadáte názov (napr. Letné prázdniny), dátum od–do a voliteľne každoročné opakovanie rovnakých dátumov.",
@@ -194,6 +202,10 @@ const I18N = {
     vac_tabs_empty: "Define vacation periods in the <em>Vacations</em> tab.",
     grid_hint: "Click an hour to expand minutes. Click a minute to add or remove it.",
     vac_grid_hint: "Timetable for <strong>{0}</strong>. Empty = the workday schedule is used.",
+    chip_note_btn_title: "Different terminus / note for this departure",
+    chip_note_label: "Departure {0} – different terminus",
+    chip_note_ph: "E.g. Kukleny Albert (optional)",
+    chip_note_clear: "Remove note",
     add_line_btn: "Add line", save_line: "Save line", back: "← Back",
     enter_direction: "Enter the direction (final stop).",
     train_exists: "A train line with this direction and category already exists. Edit it in the line list or pick a different category.",
@@ -221,7 +233,7 @@ const I18N = {
     confirm_del_group: "Delete group \"{0}\"? All schedule settings for this group will be lost.",
     save_error: "Error while saving: ",
     help_title: "How it works",
-    help_1: "<strong>Lines</strong> are added in the <em>Lines</em> tab. For each one pick the transport type (🚌 bus, 🚎 trolleybus, 🚋 tram, 🚂 train), the direction and the departure times per day type using the tabs. Click an hour to expand minutes, click a minute to add or remove it.",
+    help_1: "<strong>Lines</strong> are added in the <em>Lines</em> tab. For each one pick the transport type (🚌 bus, 🚎 trolleybus, 🚋 tram, 🚂 train), the direction and the departure times per day type using the tabs. Click an hour to expand minutes, click a minute to add or remove it. Use the ✎ on a placed minute to give that one departure a different terminus, for trips that exceptionally don't run the line's usual route.",
     help_2: "<strong>Trains</strong> do not need a line number – the direction is enough. Optionally add a category or a line designation (e.g. S3). If a service departs from a different stop (e.g. the railway station), tick <em>Departs from a different stop</em> – the card then shows that stop as a separate section with its own departure colors.",
     help_3: "<strong>Public holidays</strong> are detected automatically from the country setting in Home Assistant. You do not need to list them. Just configure the <em>Public holiday</em> tab in the editor.",
     help_4: "<strong>Vacation periods</strong> are defined manually in the <em>Vacations</em> tab. Enter a name (e.g. Summer break), a from–to date and optionally repeat the same dates every year.",
@@ -260,6 +272,10 @@ const I18N = {
     vac_tabs_empty: "Ferienzeiten definieren Sie im Tab <em>Ferien</em>.",
     grid_hint: "Klicken Sie auf eine Stunde, um die Minuten aufzuklappen. Klicken Sie auf eine Minute, um sie hinzuzufügen oder zu entfernen.",
     vac_grid_hint: "Fahrplan für <strong>{0}</strong>. Leer = der Werktagsfahrplan wird verwendet.",
+    chip_note_btn_title: "Andere Endstation / Hinweis für diese Abfahrt",
+    chip_note_label: "Abfahrt {0} – andere Endstation",
+    chip_note_ph: "Z. B. Kukleny Albert (optional)",
+    chip_note_clear: "Hinweis entfernen",
     add_line_btn: "Linie hinzufügen", save_line: "Linie speichern", back: "← Zurück",
     enter_direction: "Geben Sie die Richtung (Endhaltestelle) ein.",
     train_exists: "Eine Zuglinie mit dieser Richtung und Gattung existiert bereits. Bearbeiten Sie sie in der Linienliste oder wählen Sie eine andere Gattung.",
@@ -287,7 +303,7 @@ const I18N = {
     confirm_del_group: "Gruppe \"{0}\" löschen? Alle Fahrplaneinstellungen dieser Gruppe gehen verloren.",
     save_error: "Fehler beim Speichern: ",
     help_title: "So funktioniert es",
-    help_1: "<strong>Linien</strong> fügen Sie im Tab <em>Linien</em> hinzu. Für jede wählen Sie das Verkehrsmittel (🚌 Bus, 🚎 O-Bus, 🚋 Straßenbahn, 🚂 Zug), die Richtung und die Abfahrtszeiten pro Tagestyp über die Tabs. Klicken Sie auf eine Stunde, um die Minuten aufzuklappen.",
+    help_1: "<strong>Linien</strong> fügen Sie im Tab <em>Linien</em> hinzu. Für jede wählen Sie das Verkehrsmittel (🚌 Bus, 🚎 O-Bus, 🚋 Straßenbahn, 🚂 Zug), die Richtung und die Abfahrtszeiten pro Tagestyp über die Tabs. Klicken Sie auf eine Stunde, um die Minuten aufzuklappen. Über das ✎-Symbol an einer Minute können Sie für diese eine Abfahrt eine andere Endstation festlegen, falls diese Fahrt ausnahmsweise nicht die übliche Strecke fährt.",
     help_2: "<strong>Züge</strong> brauchen keine Liniennummer – die Richtung genügt. Optional ergänzen Sie eine Gattung (S, RB, RE, IRE) oder eine Linienbezeichnung (z. B. S3). Fährt ein Zug von einer anderen Haltestelle (z. B. dem Bahnhof), aktivieren Sie <em>Fährt von einer anderen Haltestelle</em> – die Karte zeigt diese dann als eigenen Abschnitt mit eigenen Abfahrtsfarben.",
     help_3: "<strong>Feiertage</strong> werden automatisch anhand der Ländereinstellung in Home Assistant erkannt. Sie müssen sie nirgends eintragen. Konfigurieren Sie im Editor einfach den Tab <em>Feiertag</em>.",
     help_4: "<strong>Ferienzeiten</strong> definieren Sie manuell im Tab <em>Ferien</em>. Geben Sie einen Namen (z. B. Sommerferien), ein Von–Bis-Datum und optional eine jährliche Wiederholung derselben Daten ein.",
@@ -326,6 +342,10 @@ const I18N = {
     vac_tabs_empty: "Définissez les périodes de vacances dans l'onglet <em>Vacances</em>.",
     grid_hint: "Cliquez sur une heure pour déplier les minutes. Cliquez sur une minute pour l'ajouter ou la retirer.",
     vac_grid_hint: "Horaire pour <strong>{0}</strong>. Vide = l'horaire de jour ouvré est utilisé.",
+    chip_note_btn_title: "Terminus différent / note pour ce départ",
+    chip_note_label: "Départ {0} – terminus différent",
+    chip_note_ph: "Ex. Kukleny Albert (facultatif)",
+    chip_note_clear: "Supprimer la note",
     add_line_btn: "Ajouter la ligne", save_line: "Enregistrer la ligne", back: "← Retour",
     enter_direction: "Saisissez la direction (terminus).",
     train_exists: "Une ligne de train avec cette direction et cette catégorie existe déjà. Modifiez-la dans la liste ou choisissez une autre catégorie.",
@@ -353,7 +373,7 @@ const I18N = {
     confirm_del_group: "Supprimer le groupe \"{0}\" ? Tous les réglages d'horaire de ce groupe seront perdus.",
     save_error: "Erreur lors de l'enregistrement : ",
     help_title: "Comment ça marche",
-    help_1: "<strong>Les lignes</strong> s'ajoutent dans l'onglet <em>Lignes</em>. Pour chacune, choisissez le type de transport (🚌 bus, 🚎 trolleybus, 🚋 tramway, 🚂 train), la direction et les heures de départ par type de jour via les onglets. Cliquez sur une heure pour déplier les minutes.",
+    help_1: "<strong>Les lignes</strong> s'ajoutent dans l'onglet <em>Lignes</em>. Pour chacune, choisissez le type de transport (🚌 bus, 🚎 trolleybus, 🚋 tramway, 🚂 train), la direction et les heures de départ par type de jour via les onglets. Cliquez sur une heure pour déplier les minutes. Utilisez le ✎ sur une minute pour donner à ce seul départ un terminus différent, pour les courses qui ne suivent exceptionnellement pas l'itinéraire habituel.",
     help_2: "<strong>Les trains</strong> n'ont pas besoin de numéro de ligne – la direction suffit. Ajoutez éventuellement une catégorie (TER, RER) ou une désignation (p. ex. RER A). Si un train part d'un autre arrêt (p. ex. la gare), cochez <em>Part d'un autre arrêt</em> – la carte l'affiche alors comme une section séparée avec ses propres couleurs de départs.",
     help_3: "<strong>Les jours fériés</strong> sont détectés automatiquement selon le pays configuré dans Home Assistant. Vous n'avez rien à saisir. Configurez simplement l'onglet <em>Jour férié</em> dans l'éditeur.",
     help_4: "<strong>Les périodes de vacances</strong> se définissent manuellement dans l'onglet <em>Vacances</em>. Saisissez un nom (p. ex. Vacances d'été), des dates de début et fin et, si besoin, une répétition annuelle des mêmes dates.",
@@ -392,6 +412,10 @@ const I18N = {
     vac_tabs_empty: "Defina los periodos de vacaciones en la pestaña <em>Vacaciones</em>.",
     grid_hint: "Haga clic en una hora para desplegar los minutos. Haga clic en un minuto para añadirlo o quitarlo.",
     vac_grid_hint: "Horario para <strong>{0}</strong>. Vacío = se usa el horario laborable.",
+    chip_note_btn_title: "Destino diferente / nota para esta salida",
+    chip_note_label: "Salida {0} – destino diferente",
+    chip_note_ph: "Ej. Kukleny Albert (opcional)",
+    chip_note_clear: "Quitar nota",
     add_line_btn: "Añadir línea", save_line: "Guardar línea", back: "← Atrás",
     enter_direction: "Introduzca la dirección (parada final).",
     train_exists: "Ya existe una línea de tren con esta dirección y categoría. Edítela en la lista o elija otra categoría.",
@@ -419,7 +443,7 @@ const I18N = {
     confirm_del_group: "¿Eliminar el grupo \"{0}\"? Se perderán todos los ajustes de horario de este grupo.",
     save_error: "Error al guardar: ",
     help_title: "Cómo funciona",
-    help_1: "<strong>Las líneas</strong> se añaden en la pestaña <em>Líneas</em>. Para cada una elija el tipo de transporte (🚌 autobús, 🚎 trolebús, 🚋 tranvía, 🚂 tren), la dirección y las horas de salida por tipo de día mediante las pestañas. Haga clic en una hora para desplegar los minutos.",
+    help_1: "<strong>Las líneas</strong> se añaden en la pestaña <em>Líneas</em>. Para cada una elija el tipo de transporte (🚌 autobús, 🚎 trolebús, 🚋 tranvía, 🚂 tren), la dirección y las horas de salida por tipo de día mediante las pestañas. Haga clic en una hora para desplegar los minutos. Use el ✎ en un minuto para dar a esa salida un destino diferente, para los servicios que excepcionalmente no siguen la ruta habitual.",
     help_2: "<strong>Los trenes</strong> no necesitan número de línea – basta la dirección. Opcionalmente añada una categoría (C, MD, R) o una designación (p. ej. C1). Si un tren sale de otra parada (p. ej. la estación), marque <em>Sale de otra parada</em> – la tarjeta la mostrará como sección separada con sus propios colores de salidas.",
     help_3: "<strong>Los festivos</strong> se detectan automáticamente según el país configurado en Home Assistant. No necesita introducirlos. Configure simplemente la pestaña <em>Festivo</em> en el editor.",
     help_4: "<strong>Los periodos de vacaciones</strong> se definen manualmente en la pestaña <em>Vacaciones</em>. Introduzca un nombre (p. ej. Vacaciones de verano), fechas de inicio y fin y, opcionalmente, una repetición anual de las mismas fechas.",
@@ -447,6 +471,7 @@ class MHDTimetablePanel extends HTMLElement {
     this._newLineNum = "";
     this._editorTab = "workday";
     this._expandedHours = {};
+    this._editingChipNote = null;
     this._vacationView = false;
     this._notificationView = false;
     this._editingVacIdx = null;
@@ -555,6 +580,25 @@ class MHDTimetablePanel extends HTMLElement {
     }
 
     return null;
+  }
+
+  // A minute entry is either a plain number (normal departure) or
+  // { m, direction } for a departure that ends/continues somewhere other
+  // than the line's usual direction (e.g. "jede jen do Kukleny Albert").
+  _minuteNum(entry) {
+    return typeof entry === "object" && entry !== null ? entry.m : entry;
+  }
+  _minuteNote(entry) {
+    return typeof entry === "object" && entry !== null ? (entry.direction || "") : "";
+  }
+
+  _currentChipNoteText() {
+    const ec = this._editingChipNote;
+    if (!ec) return "";
+    const ld = this._getLineData();
+    const arr = (ld[ec.type] && ld[ec.type][String(ec.hour)]) || [];
+    const entry = arr.find(e => this._minuteNum(e) === ec.minute);
+    return entry ? this._minuteNote(entry) : "";
   }
 
   _schedColor(key) {
@@ -1144,26 +1188,40 @@ class MHDTimetablePanel extends HTMLElement {
       types.forEach(type => {
         const sched = lineData[type] || {};
         const mins = (sched[String(h)] || sched[hStr] || []).slice();
-        mins.sort((a, b) => a - b).forEach(m => allChips.push({ m, type }));
+        mins.sort((a, b) => this._minuteNum(a) - this._minuteNum(b))
+          .forEach(entry => allChips.push({ m: this._minuteNum(entry), note: this._minuteNote(entry), type }));
       });
       allChips.sort((a, b) => a.m - b.m);
 
       // Active type mins for the editable minute grid
       const activeSched = lineData[activeType] || {};
-      const activeMins = (activeSched[String(h)] || activeSched[hStr] || []).slice();
+      const activeMins = (activeSched[String(h)] || activeSched[hStr] || []).slice().map(e => this._minuteNum(e));
 
       const expanded = this._expandedHours[`${activeType}_${h}`];
+      const noteEdit = this._editingChipNote;
+      const editingHere = noteEdit && noteEdit.hour === h;
       html += `
         <div class="hour-row">
           <div class="hour-hdr ${expanded ? "open" : ""}" data-hour="${h}" data-type="${activeType}">
             <span class="hour-lbl">${hStr}</span>
             <div class="chips">
-              ${allChips.map(({m, type}) =>
-                `<span class="chip chip-${this._schedColor(type)}" data-h="${h}" data-m="${m}" data-type="${type}">${String(m).padStart(2,"0")}</span>`
+              ${allChips.map(({m, note, type}) => `
+                <span class="chip chip-${this._schedColor(type)} ${note ? "has-note" : ""}" data-h="${h}" data-m="${m}" data-type="${type}" title="${note}">
+                  ${String(m).padStart(2,"0")}
+                  <button class="chip-note-btn" data-h="${h}" data-m="${m}" data-type="${type}" title="${this._t("chip_note_btn_title")}">✎</button>
+                </span>`
               ).join("")}
             </div>
             <span class="toggle">${expanded ? "▲" : "▼"}</span>
           </div>
+          ${editingHere ? `
+            <div class="chip-note-form" data-h="${h}">
+              <span class="chip-note-form-lbl">${this._t("chip_note_label", `${String(noteEdit.hour).padStart(2,"0")}:${String(noteEdit.minute).padStart(2,"0")}`)}</span>
+              <input class="chip-note-input" placeholder="${this._t("chip_note_ph")}" value="${this._currentChipNoteText()}">
+              <button class="chip-note-save">${this._t("save")}</button>
+              <button class="chip-note-clear">${this._t("chip_note_clear")}</button>
+              <button class="chip-note-cancel">✕</button>
+            </div>` : ""}
           ${expanded ? `
             <div class="min-grid">
               ${Array.from({length:60}, (_, m) => `
@@ -1244,6 +1302,7 @@ class MHDTimetablePanel extends HTMLElement {
         const types = (ld?.schedule_types || ["workday"]).filter(t => BASE_TYPES.includes(t));
         this._editorTab = types[0] || "workday";
         this._expandedHours = {};
+        this._editingChipNote = null;
         this._render();
       });
     });
@@ -1263,6 +1322,7 @@ class MHDTimetablePanel extends HTMLElement {
       this._newLineNum = "";
       this._editorTab = "workday";
       this._expandedHours = {};
+      this._editingChipNote = null;
       this._render();
     });
 
@@ -1450,6 +1510,7 @@ class MHDTimetablePanel extends HTMLElement {
         ld.combine = chip.dataset.combine;
         this._syncCombinedSchedules(ld);
         this._expandedHours = {};
+        this._editingChipNote = null;
         this._render();
       });
     });
@@ -1468,6 +1529,7 @@ class MHDTimetablePanel extends HTMLElement {
         this._syncFields();
         this._editorTab = btn.dataset.type;
         this._expandedHours = {};
+        this._editingChipNote = null;
         this._render();
       });
     });
@@ -1510,6 +1572,40 @@ class MHDTimetablePanel extends HTMLElement {
         this._toggleMinute(chip.dataset.type, parseInt(chip.dataset.h), parseInt(chip.dataset.m));
         this._render();
       });
+    });
+
+    // ---- Per-departure "different terminus" note ----
+    root.querySelectorAll(".chip-note-btn").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        this._syncFields();
+        this._editingChipNote = {
+          type: btn.dataset.type,
+          hour: parseInt(btn.dataset.h),
+          minute: parseInt(btn.dataset.m),
+        };
+        this._render();
+      });
+    });
+    root.querySelector(".chip-note-save")?.addEventListener("click", e => {
+      e.stopPropagation();
+      const ec = this._editingChipNote;
+      const val = root.querySelector(".chip-note-input")?.value || "";
+      if (ec) this._setMinuteNote(ec.type, ec.hour, ec.minute, val);
+      this._editingChipNote = null;
+      this._render();
+    });
+    root.querySelector(".chip-note-clear")?.addEventListener("click", e => {
+      e.stopPropagation();
+      const ec = this._editingChipNote;
+      if (ec) this._setMinuteNote(ec.type, ec.hour, ec.minute, "");
+      this._editingChipNote = null;
+      this._render();
+    });
+    root.querySelector(".chip-note-cancel")?.addEventListener("click", e => {
+      e.stopPropagation();
+      this._editingChipNote = null;
+      this._render();
     });
 
     root.querySelector(".line-save-btn")?.addEventListener("click", () => {
@@ -1596,11 +1692,25 @@ class MHDTimetablePanel extends HTMLElement {
     const key = String(hour);
     if (!ld[type][key]) ld[type][key] = [];
     const arr = ld[type][key];
-    const idx = arr.indexOf(minute);
+    const idx = arr.findIndex(e => this._minuteNum(e) === minute);
     if (idx >= 0) arr.splice(idx, 1); else arr.push(minute);
-    arr.sort((a, b) => a - b);
+    arr.sort((a, b) => this._minuteNum(a) - this._minuteNum(b));
     if (arr.length === 0) delete ld[type][key];
     // Mirror the edit into the other days of a combined group
+    this._syncCombinedSchedules(ld);
+  }
+
+  // Attach (or clear) a "different terminus" note on an already-placed
+  // departure. Stored as {m, direction} instead of a plain number; empty
+  // note collapses it back to a plain number so unused lines stay tiny.
+  _setMinuteNote(type, hour, minute, note) {
+    const ld = this._getLineData();
+    const arr = ld[type] && ld[type][String(hour)];
+    if (!arr) return;
+    const idx = arr.findIndex(e => this._minuteNum(e) === minute);
+    if (idx < 0) return;
+    const trimmed = (note || "").trim();
+    arr[idx] = trimmed ? { m: minute, direction: trimmed } : minute;
     this._syncCombinedSchedules(ld);
   }
 
@@ -2025,6 +2135,7 @@ class MHDTimetablePanel extends HTMLElement {
       }
       .chips { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; }
       .chip {
+        position: relative;
         border-radius: 4px; padding: 2px 6px;
         font-size: 0.78em; font-weight: 700; cursor: pointer;
         color: #fff; transition: opacity 0.15s;
@@ -2035,6 +2146,48 @@ class MHDTimetablePanel extends HTMLElement {
       .chip-green  { background: #43a047; }
       .chip-purple { background: #8e24aa; }
       .toggle { font-size: 0.68em; color: var(--secondary-text-color); margin-left: auto; }
+
+      .chip-note-btn {
+        position: absolute; top: -5px; right: -5px;
+        width: 14px; height: 14px; line-height: 13px;
+        border-radius: 50%; border: none; padding: 0;
+        font-size: 8px; cursor: pointer;
+        background: var(--card-background-color, #fff);
+        color: var(--secondary-text-color);
+        opacity: 0; transition: opacity 0.15s;
+      }
+      .chip:hover .chip-note-btn { opacity: 1; }
+      .chip.has-note { padding-right: 10px; }
+      .chip.has-note .chip-note-btn { opacity: 1; background: #e53935; color: #fff; }
+
+      .chip-note-form {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+        padding: 10px 14px; margin: 2px 0 6px;
+        background: var(--secondary-background-color);
+        border-radius: 8px; border: 1px solid var(--primary-color);
+      }
+      .chip-note-form-lbl { font-size: 0.85em; font-weight: 600; color: var(--secondary-text-color); }
+      .chip-note-input {
+        flex: 1; min-width: 160px;
+        border: 1px solid var(--divider-color, rgba(0,0,0,.2));
+        border-radius: 6px; padding: 6px 9px;
+        background: var(--card-background-color, #fff);
+        color: var(--primary-text-color); font-size: 0.9em;
+      }
+      .chip-note-save {
+        padding: 6px 12px; border-radius: 6px;
+        background: var(--primary-color); color: var(--primary-color-text, #fff);
+        border: none; cursor: pointer; font-size: 0.88em; font-weight: 600;
+      }
+      .chip-note-clear {
+        padding: 6px 10px; border-radius: 6px;
+        background: none; border: 1px solid var(--error-color, #e53935);
+        color: var(--error-color, #e53935); cursor: pointer; font-size: 0.85em;
+      }
+      .chip-note-cancel {
+        background: none; border: none;
+        color: var(--error-color, #e53935); cursor: pointer; font-size: 1em;
+      }
 
       .min-grid {
         display: grid; grid-template-columns: repeat(10, 1fr);

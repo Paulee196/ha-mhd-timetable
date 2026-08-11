@@ -13,7 +13,8 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 
@@ -341,7 +342,51 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     # dashboards), because of the registration above.
     await _async_register_lovelace_resource(hass, _card_js_url())
 
+    _async_register_import_lines_service(hass)
+
     return True
+
+
+_IMPORT_LINES_SCHEMA = vol.Schema({
+    vol.Required("config_entry_id"): str,
+    vol.Required("lines"): dict,
+})
+
+
+def _async_register_import_lines_service(hass: HomeAssistant) -> None:
+    """Register mhd_timetable.import_lines - a safe, atomic way to bulk-load
+    or restore a stop's lines from JSON via Developer Tools -> Actions,
+    instead of hand-editing the .storage file (which is easy to get wrong
+    when splicing a large JSON blob in by hand)."""
+    if hass.services.has_service(DOMAIN, "import_lines"):
+        return
+
+    async def _async_handle_import_lines(call: ServiceCall) -> None:
+        entry_id = call.data["config_entry_id"]
+        lines = call.data["lines"]
+
+        domain_data = hass.data.get(DOMAIN, {})
+        entry_storage = domain_data.get(entry_id)
+        if entry_storage is None:
+            raise HomeAssistantError(f"Unknown timetable entry_id: {entry_id}")
+        if not isinstance(lines, dict):
+            raise HomeAssistantError("`lines` must be an object/dict keyed by line number")
+
+        data = entry_storage["data"]
+        data["lines"] = lines
+        entry_storage["data"] = data
+        await entry_storage["store"].async_save(data)
+
+        _LOGGER.warning(
+            "Imported %d line(s) via mhd_timetable.import_lines for entry %s "
+            "(vacation_periods/vacation_groups/notifications left untouched)",
+            len(lines), entry_id,
+        )
+        async_dispatcher_send(hass, f"{DOMAIN}_updated_{entry_id}")
+
+    hass.services.async_register(
+        DOMAIN, "import_lines", _async_handle_import_lines, schema=_IMPORT_LINES_SCHEMA
+    )
 
 
 async def _async_register_extra_module_url(hass: HomeAssistant, url: str) -> None:

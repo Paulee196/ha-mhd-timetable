@@ -1,0 +1,25 @@
+import_lines:
+  name: Import timetable lines
+  description: >-
+    Replace all lines for a stop with the given JSON in one atomic write,
+    without touching its vacation periods, vacation groups or
+    notifications. Intended for bulk-loading or restoring a full
+    timetable that was prepared externally, instead of hand-editing the
+    integration's storage file.
+  fields:
+    config_entry_id:
+      name: Stop
+      description: The timetable stop to import lines into.
+      required: true
+      selector:
+        config_entry:
+          integration: mhd_timetable
+    lines:
+      name: Lines
+      description: >-
+        Object keyed by line number/designation, in the same shape the
+        integration itself stores it (workday/saturday/sunday/holiday
+        minute lists, direction, route, transport_type, etc.).
+      required: true
+      selector:
+        object: {}

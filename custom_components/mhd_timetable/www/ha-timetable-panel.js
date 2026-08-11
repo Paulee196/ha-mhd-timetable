@@ -2068,5 +2068,9 @@ if (!customElements.get("ha-timetable-panel")) {
   customElements.define("ha-timetable-panel", MHDTimetablePanel);
 }
 if (!customElements.get("mhd-timetable-panel")) {
-  customElements.define("mhd-timetable-panel", MHDTimetablePanel);
+  // A single class cannot be registered under two tag names - the Custom
+  // Elements spec throws "this constructor has already been used with this
+  // registry". Use a trivial subclass for the legacy alias instead.
+  class MHDTimetablePanelLegacy extends MHDTimetablePanel {}
+  customElements.define("mhd-timetable-panel", MHDTimetablePanelLegacy);
 }

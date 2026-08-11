@@ -1,7 +1,7 @@
 /**
  * Timetable Card – departure display for Home Assistant Lovelace
  */
-var MHD_CARD_VERSION = "0.12.3";
+var MHD_CARD_VERSION = "0.12.6";
 // The card is always loaded as an ES module (?v= set by __init__.py), so the
 // badge follows the installed version automatically; the constant is a fallback.
 try {
@@ -810,17 +810,25 @@ class MHDTimetableCardEditor extends HTMLElement {
 
 }
 
-if (!customElements.get("mhd-timetable-card")) {
-  customElements.define("mhd-timetable-card", MHDTimetableCard);
-}
+// A single class cannot be registered under two tag names - the Custom
+// Elements spec throws "this constructor has already been used with this
+// registry" on the second call, which used to abort the rest of this
+// script (including the window.customCards registration below) before it
+// ever ran. Register the current name directly and use a trivial subclass
+// for the legacy alias so both registrations always succeed.
 if (!customElements.get("ha-timetable-card")) {
   customElements.define("ha-timetable-card", MHDTimetableCard);
 }
-if (!customElements.get("mhd-timetable-card-editor")) {
-  customElements.define("mhd-timetable-card-editor", MHDTimetableCardEditor);
+if (!customElements.get("mhd-timetable-card")) {
+  class MHDTimetableCardLegacy extends MHDTimetableCard {}
+  customElements.define("mhd-timetable-card", MHDTimetableCardLegacy);
 }
 if (!customElements.get("ha-timetable-card-editor")) {
   customElements.define("ha-timetable-card-editor", MHDTimetableCardEditor);
+}
+if (!customElements.get("mhd-timetable-card-editor")) {
+  class MHDTimetableCardEditorLegacy extends MHDTimetableCardEditor {}
+  customElements.define("mhd-timetable-card-editor", MHDTimetableCardEditorLegacy);
 }
 
 window.customCards = window.customCards || [];

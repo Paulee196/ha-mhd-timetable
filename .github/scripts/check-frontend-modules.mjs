@@ -101,6 +101,14 @@ const checks = [
     expectElements: ["ha-timetable-panel", "mhd-timetable-panel"],
     expectCustomCardType: null,
   },
+  {
+    // The loader has no query string here, so it falls back to importing
+    // "./ha-timetable-card.js" with no ?v= - still the real file, still
+    // proves the retrying import actually resolves and registers the card.
+    file: "ha-timetable-loader.js",
+    expectElements: ["ha-timetable-card"],
+    expectCustomCardType: "ha-timetable-card",
+  },
 ];
 
 let failed = false;

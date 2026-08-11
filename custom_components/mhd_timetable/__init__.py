@@ -29,6 +29,7 @@ _STATIC_PATH = f"/{PUBLIC_DOMAIN}_static"
 _LEGACY_STATIC_PATH = f"/{DOMAIN}_static"
 _CARD_FILENAME = "ha-timetable-card.js"
 _LEGACY_CARD_FILENAME = "mhd-timetable-card.js"
+_LOADER_FILENAME = "ha-timetable-loader.js"
 _PANEL_FILENAME = "ha-timetable-panel.js"
 _LEGACY_PANEL_FILENAME = "mhd-timetable-panel.js"
 _CARD_TYPE = "custom:ha-timetable-card"
@@ -118,6 +119,9 @@ def _get_version() -> str:
 
 def _card_js_url() -> str:
     return f"{_STATIC_PATH}/{_CARD_FILENAME}?v={_get_version()}"
+
+def _loader_js_url() -> str:
+    return f"{_STATIC_PATH}/{_LOADER_FILENAME}?v={_get_version()}"
 
 def _panel_js_url() -> str:
     return f"{_STATIC_PATH}/{_PANEL_FILENAME}?v={_get_version()}"
@@ -333,14 +337,22 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     # running in storage mode, does not race against the lazily-loaded
     # Lovelace resource collection, and works identically for every user
     # regardless of how their dashboards are configured.
-    await _async_register_extra_module_url(hass, _card_js_url())
+    #
+    # Points at the small retrying loader, not the card file directly: both
+    # this mechanism and the Lovelace resource one below give the browser
+    # exactly one import() attempt with no retry. On a flaky connection
+    # (typically the HA Companion App's WebView on a cold start over mobile
+    # data) a single failed fetch left the card undefined for the rest of
+    # that session with no way to recover short of clearing the app's
+    # cache. The loader retries the real import a few times with backoff.
+    await _async_register_extra_module_url(hass, _loader_js_url())
 
     # Also register it as a Lovelace "resource" so it shows up (and can be
     # managed) under Settings -> Dashboards -> Resources for storage-mode
     # users. This is a secondary, best-effort registration - the card works
     # even if this part fails or silently does nothing (e.g. YAML-mode
     # dashboards), because of the registration above.
-    await _async_register_lovelace_resource(hass, _card_js_url())
+    await _async_register_lovelace_resource(hass, _loader_js_url())
 
     _async_register_import_lines_service(hass)
 
@@ -519,7 +531,10 @@ async def _async_register_via_collection(collection: Any, url: str, filenames: t
 
 async def _async_register_lovelace_resource(hass: HomeAssistant, url: str) -> None:
     """Ensure exactly one correct registration for the card JS in Lovelace resources."""
-    filenames = (_CARD_FILENAME, _LEGACY_CARD_FILENAME)
+    # Include the (now current) loader filename plus both older ones, so a
+    # resource entry from before the loader existed is recognized as "ours"
+    # and replaced rather than left behind as an orphan duplicate.
+    filenames = (_LOADER_FILENAME, _CARD_FILENAME, _LEGACY_CARD_FILENAME)
 
     collection = _lovelace_resource_collection(hass)
     if collection is not None:

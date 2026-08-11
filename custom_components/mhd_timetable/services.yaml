@@ -23,3 +23,13 @@ import_lines:
       required: true
       selector:
         object: {}
+    vacation_schedules:
+      name: Vacation schedules (optional)
+      description: >-
+        Object keyed by vacation group name (as shown in the Prazdniny
+        tab), each value an object keyed by line number with that line's
+        minute schedule for that group - e.g. {"Omezeny provoz": {"23":
+        {"08": [17, 38]}}}. The named group must already exist.
+      required: false
+      selector:
+        object: {}

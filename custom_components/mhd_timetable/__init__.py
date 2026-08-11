@@ -350,6 +350,11 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 _IMPORT_LINES_SCHEMA = vol.Schema({
     vol.Required("config_entry_id"): str,
     vol.Required("lines"): dict,
+    # Optional: {vacation_group_label: {line_number: {hour: [minutes]}}}.
+    # Keyed by the group's human-readable label (as shown in the Prazdniny
+    # tab) rather than its internal id, which nobody outside the storage
+    # file ever sees.
+    vol.Optional("vacation_schedules"): dict,
 })
 
 
@@ -374,13 +379,46 @@ def _async_register_import_lines_service(hass: HomeAssistant) -> None:
 
         data = entry_storage["data"]
         data["lines"] = lines
+
+        vacation_schedules = call.data.get("vacation_schedules") or {}
+        if vacation_schedules:
+            if not isinstance(vacation_schedules, dict):
+                raise HomeAssistantError(
+                    "`vacation_schedules` must be an object keyed by vacation group name"
+                )
+            groups_by_label = {
+                (g.get("label") or "").strip(): g.get("id")
+                for g in (data.get("vacation_groups") or [])
+                if g.get("id")
+            }
+            for group_label, per_line in vacation_schedules.items():
+                group_id = groups_by_label.get(str(group_label).strip())
+                if not group_id:
+                    raise HomeAssistantError(
+                        f"No vacation group named '{group_label}' found - "
+                        "create it in the Prazdniny tab first"
+                    )
+                if not isinstance(per_line, dict):
+                    raise HomeAssistantError(
+                        f"vacation_schedules['{group_label}'] must be an object keyed by line number"
+                    )
+                for line_num, sched in per_line.items():
+                    line_data = data["lines"].get(str(line_num))
+                    if line_data is None:
+                        raise HomeAssistantError(
+                            f"Line '{line_num}' referenced in vacation_schedules "
+                            "does not exist in `lines`"
+                        )
+                    line_data[f"vacation_{group_id}"] = sched or {}
+
         entry_storage["data"] = data
         await entry_storage["store"].async_save(data)
 
         _LOGGER.warning(
-            "Imported %d line(s) via mhd_timetable.import_lines for entry %s "
+            "Imported %d line(s) and %d vacation schedule group(s) via "
+            "mhd_timetable.import_lines for entry %s "
             "(vacation_periods/vacation_groups/notifications left untouched)",
-            len(lines), entry_id,
+            len(lines), len(vacation_schedules), entry_id,
         )
         async_dispatcher_send(hass, f"{DOMAIN}_updated_{entry_id}")
 

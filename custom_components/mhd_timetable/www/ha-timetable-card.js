@@ -1,7 +1,7 @@
 /**
  * Timetable Card – departure display for Home Assistant Lovelace
  */
-var MHD_CARD_VERSION = "0.13.4";
+var MHD_CARD_VERSION = "0.13.8";
 // The card is always loaded as an ES module (?v= set by __init__.py), so the
 // badge follows the installed version automatically; the constant is a fallback.
 try {
@@ -24,7 +24,7 @@ var MHD_I18N = {
     sensor_hint: "Senzor zastávky vytvořený doplňkem.",
     custom_name: "Vlastní název zastávky", custom_name_ph: "Ponechte prázdné = název z integrace",
     custom_name_hint: "Přepíše název zobrazený v hlavičce karty.",
-    sec_display: "Zobrazení", dep_count: "Počet odjezdů", dep_count_hint: "Nejbližších spojů (1–10, výchozí 3)",
+    sec_display: "Zobrazení", dep_count: "Počet odjezdů", dep_count_hint: "Nejbližších spojů z domovské zastávky (1–10, výchozí 3). Ostatní zastávky (např. vlak jinde) se zobrazí navíc, jen ta nejbližší z každé a jen do 30 minut.",
     sec_colors: "Barvy odjezdů", home_stop: "Domovská zastávka",
     red_below: "🔴 Červená pod", yellow_below: "🟡 Žlutá pod",
     min_default: "minut (výchozí {0})", min_inherit: "minut (prázdné = jako domovská)",
@@ -45,7 +45,7 @@ var MHD_I18N = {
     sensor_hint: "Senzor zastávky vytvorený doplnkom.",
     custom_name: "Vlastný názov zastávky", custom_name_ph: "Nechajte prázdne = názov z integrácie",
     custom_name_hint: "Prepíše názov zobrazený v hlavičke karty.",
-    sec_display: "Zobrazenie", dep_count: "Počet odchodov", dep_count_hint: "Najbližších spojov (1–10, predvolené 3)",
+    sec_display: "Zobrazenie", dep_count: "Počet odchodov", dep_count_hint: "Najbližších spojov z domovskej zastávky (1–10, predvolené 3). Ostatné zastávky (napr. vlak inde) sa zobrazia navyše, len tá najbližšia z každej a len do 30 minút.",
     sec_colors: "Farby odchodov", home_stop: "Domovská zastávka",
     red_below: "🔴 Červená pod", yellow_below: "🟡 Žltá pod",
     min_default: "minút (predvolené {0})", min_inherit: "minút (prázdne = ako domovská)",
@@ -66,7 +66,7 @@ var MHD_I18N = {
     sensor_hint: "Stop sensor created by the integration.",
     custom_name: "Custom stop name", custom_name_ph: "Leave empty = name from the integration",
     custom_name_hint: "Overrides the name shown in the card header.",
-    sec_display: "Display", dep_count: "Number of departures", dep_count_hint: "Upcoming departures (1–10, default 3)",
+    sec_display: "Display", dep_count: "Number of departures", dep_count_hint: "Upcoming departures from the home stop (1-10, default 3). Other stops (e.g. a train elsewhere) show in addition, only their nearest one and only within 30 minutes.",
     sec_colors: "Departure colors", home_stop: "Home stop",
     red_below: "🔴 Red below", yellow_below: "🟡 Yellow below",
     min_default: "minutes (default {0})", min_inherit: "minutes (empty = same as home)",
@@ -87,7 +87,7 @@ var MHD_I18N = {
     sensor_hint: "Von der Integration erstellter Haltestellen-Sensor.",
     custom_name: "Eigener Haltestellenname", custom_name_ph: "Leer lassen = Name aus der Integration",
     custom_name_hint: "Überschreibt den Namen in der Kartenüberschrift.",
-    sec_display: "Anzeige", dep_count: "Anzahl der Abfahrten", dep_count_hint: "Nächste Abfahrten (1–10, Standard 3)",
+    sec_display: "Anzeige", dep_count: "Anzahl der Abfahrten", dep_count_hint: "Nächste Abfahrten von der Heimathaltestelle (1–10, Standard 3). Andere Haltestellen (z. B. ein Zug woanders) werden zusätzlich angezeigt, nur die nächste je Haltestelle und nur innerhalb von 30 Minuten.",
     sec_colors: "Abfahrtsfarben", home_stop: "Heimathaltestelle",
     red_below: "🔴 Rot unter", yellow_below: "🟡 Gelb unter",
     min_default: "Minuten (Standard {0})", min_inherit: "Minuten (leer = wie Heimathaltestelle)",
@@ -108,7 +108,7 @@ var MHD_I18N = {
     sensor_hint: "Capteur de l'arrêt créé par l'intégration.",
     custom_name: "Nom personnalisé de l'arrêt", custom_name_ph: "Laisser vide = nom de l'intégration",
     custom_name_hint: "Remplace le nom affiché dans l'en-tête de la carte.",
-    sec_display: "Affichage", dep_count: "Nombre de départs", dep_count_hint: "Prochains départs (1–10, défaut 3)",
+    sec_display: "Affichage", dep_count: "Nombre de départs", dep_count_hint: "Prochains départs de l'arrêt principal (1 à 10, défaut 3). Les autres arrêts (ex. un train ailleurs) s'affichent en plus, seulement le plus proche de chacun et seulement dans les 30 minutes.",
     sec_colors: "Couleurs des départs", home_stop: "Arrêt principal",
     red_below: "🔴 Rouge sous", yellow_below: "🟡 Jaune sous",
     min_default: "minutes (défaut {0})", min_inherit: "minutes (vide = comme l'arrêt principal)",
@@ -129,7 +129,7 @@ var MHD_I18N = {
     sensor_hint: "Sensor de la parada creado por la integración.",
     custom_name: "Nombre personalizado de la parada", custom_name_ph: "Dejar vacío = nombre de la integración",
     custom_name_hint: "Sustituye el nombre mostrado en la cabecera de la tarjeta.",
-    sec_display: "Visualización", dep_count: "Número de salidas", dep_count_hint: "Próximas salidas (1–10, predeterminado 3)",
+    sec_display: "Visualización", dep_count: "Número de salidas", dep_count_hint: "Próximas salidas de la parada principal (1-10, predeterminado 3). Otras paradas (p. ej. un tren en otro sitio) se muestran además, solo la más próxima de cada una y solo dentro de 30 minutos.",
     sec_colors: "Colores de salidas", home_stop: "Parada principal",
     red_below: "🔴 Rojo por debajo de", yellow_below: "🟡 Amarillo por debajo de",
     min_default: "minutos (predeterminado {0})", min_inherit: "minutos (vacío = como la principal)",
@@ -262,38 +262,46 @@ class MHDTimetableCard extends HTMLElement {
     const state = this._hass.states[this._config.entity];
     const attr = state ? state.attributes : {};
     const count = parseInt(this._cfg("departures_count", 3), 10) || 3;
-    const allDeps = (attr.next_departures || []).slice(0, count);
     const homeStop = attr.stop || this._config.entity;
     const stopName = this._cfg("header_text", null) || homeStop;
+    const OTHER_STOP_LOOKAHEAD_MIN = 30;
 
-    // Split into home-stop departures and other-stop groups
-    var homeDeps = allDeps.filter(function(d) { return !d.stop || d.stop === homeStop; });
-    var otherDeps = allDeps.filter(function(d) { return d.stop && d.stop !== homeStop; });
+    const allDeps = attr.next_departures || [];
 
+    // Home stop always gets its own `count` departures, regardless of
+    // what else is upcoming from other stops in between.
+    var homeDeps = allDeps
+      .filter(function(d) { return !d.stop || d.stop === homeStop; })
+      .slice(0, count);
+
+    // Other stops (e.g. a train leaving from the main station instead of
+    // this stop) are a heads-up, not part of departures_count: just their
+    // single nearest departure, and only if it's coming up soon. Relies
+    // on next_departures already being sorted by minutes_until.
     var otherGroups = {};
-    otherDeps.forEach(function(d) {
-      if (!otherGroups[d.stop]) otherGroups[d.stop] = [];
-      otherGroups[d.stop].push(d);
+    allDeps.forEach(function(d) {
+      if (!d.stop || d.stop === homeStop) return;
+      if (d.minutes_until > OTHER_STOP_LOOKAHEAD_MIN) return;
+      if (!otherGroups[d.stop]) otherGroups[d.stop] = d;
     });
+    var otherStops = Object.keys(otherGroups);
 
-    // Build ordered list for popup lookup
-    this._displayDeps = homeDeps.slice();
-    Object.keys(otherGroups).forEach(function(s) {
-      otherGroups[s].forEach(function(d) { this._displayDeps.push(d); }.bind(this));
-    }.bind(this));
+    // Build ordered list for popup lookup, in the same order as rendering.
+    this._displayDeps = homeDeps.concat(otherStops.map(function(s) { return otherGroups[s]; }));
 
     // Build departures HTML
     var depsHtml = "";
-    if (allDeps.length === 0) {
+    if (homeDeps.length === 0 && otherStops.length === 0) {
       depsHtml = `<div class="empty">${mhdT(this._hass, "no_departures")}</div>`;
     } else {
       var idx = 0;
       var self = this;
       homeDeps.forEach(function(d) { depsHtml += self._depHTML(d, idx++); });
-      Object.keys(otherGroups).forEach(function(stop) {
-        var stopIco = self._stopIcon(otherGroups[stop][0].transport_type);
+      otherStops.forEach(function(stop) {
+        var d = otherGroups[stop];
+        var stopIco = self._stopIcon(d.transport_type);
         depsHtml += `<div class="other-stop-sep"><span>${stopIco} ${stop}</span></div>`;
-        otherGroups[stop].forEach(function(d) { depsHtml += self._depHTML(d, idx++); });
+        depsHtml += self._depHTML(d, idx++);
       });
     }
 

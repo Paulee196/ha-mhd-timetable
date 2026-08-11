@@ -248,6 +248,13 @@ async def _ws_save_data(
     entry_storage = domain_data[entry_id]
     entry_storage["data"] = msg["data"]
     await entry_storage["store"].async_save(msg["data"])
+    _LOGGER.info(
+        "Saved timetable data for entry %s: %d line(s), %d vacation period(s), %d vacation group(s)",
+        entry_id,
+        len(msg["data"].get("lines") or {}),
+        len(msg["data"].get("vacation_periods") or []),
+        len(msg["data"].get("vacation_groups") or []),
+    )
 
     entry = hass.config_entries.async_get_entry(entry_id)
     output_path = (
@@ -282,6 +289,13 @@ async def _ws_save_data_new(
     entry_storage = domain_data[entry_id]
     entry_storage["data"] = msg["data"]
     await entry_storage["store"].async_save(msg["data"])
+    _LOGGER.info(
+        "Saved timetable data for entry %s: %d line(s), %d vacation period(s), %d vacation group(s)",
+        entry_id,
+        len(msg["data"].get("lines") or {}),
+        len(msg["data"].get("vacation_periods") or []),
+        len(msg["data"].get("vacation_groups") or []),
+    )
 
     entry = hass.config_entries.async_get_entry(entry_id)
     output_path = (
@@ -527,15 +541,43 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     store = Store(hass, STORAGE_VERSION, f"{STORAGE_KEY}_{entry.entry_id}")
     data = await store.async_load()
     if data is None:
+        # Fall back to the pre-rename storage key exactly once. Copying
+        # legacy -> primary here used to be unconditional on every single
+        # startup for as long as async_load() kept returning None (e.g. a
+        # transient/cache hiccup right after a restart) - which could
+        # silently overwrite freshly-saved primary data with a stale legacy
+        # copy, with nothing visible to the user. Removing the legacy file
+        # right after a successful copy makes this a true one-time
+        # migration: it can physically only ever fire once per entry.
         legacy_store = Store(hass, STORAGE_VERSION, f"{LEGACY_STORAGE_KEY}_{entry.entry_id}")
-        data = await legacy_store.async_load()
-        if data is not None:
+        legacy_data = await legacy_store.async_load()
+        if legacy_data is not None:
+            data = legacy_data
             await store.async_save(data)
-            _LOGGER.info("Copied legacy timetable storage for %s", entry.data["stop_name"])
+            try:
+                await legacy_store.async_remove()
+            except Exception as exc:
+                _LOGGER.warning(
+                    "Could not remove legacy timetable storage for %s after migrating it: %s",
+                    entry.data["stop_name"], exc,
+                )
+            _LOGGER.warning(
+                "Copied legacy timetable storage for %s to the new location "
+                "(one-time migration; legacy copy removed)",
+                entry.data["stop_name"],
+            )
     data = data or _default_data(entry.data["stop_name"])
     if _migrate_data(data):
         await store.async_save(data)
         _LOGGER.info("Migrated stored timetable data for %s", entry.data["stop_name"])
+
+    _LOGGER.info(
+        "Loaded timetable data for %s: %d line(s), %d vacation period(s), %d vacation group(s)",
+        entry.data["stop_name"],
+        len(data.get("lines") or {}),
+        len(data.get("vacation_periods") or []),
+        len(data.get("vacation_groups") or []),
+    )
 
     hass.data[DOMAIN][entry.entry_id] = {
         "store": store,

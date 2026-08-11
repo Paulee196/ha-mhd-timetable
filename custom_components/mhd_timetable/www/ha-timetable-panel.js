@@ -43,6 +43,7 @@ const I18N = {
     tab_lines: "Spoje", tab_vacation: "Prázdniny", tab_notifications: "Notifikace",
     no_lines: "Zatím žádné spoje. Přidejte první spoj tlačítkem níže.",
     add_line: "+ Přidat spoj", save_changes: "Uložit změny", saving: "Ukládání…",
+    unsaved_changes: "⚠ Máš neuložené změny – dokud neklikneš na \"Uložit změny\", při zavření nebo obnovení stránky se ztratí.",
     load_failed: "Nepodařilo se načíst data zastávky.", edit: "Upravit", vac_count: "+ {0} prázdn.",
     sched_workday: "Pracovní den", sched_saturday: "Sobota", sched_sunday: "Neděle", sched_holiday: "Státní svátek",
     sched_abbr_workday: "Prac. den", sched_abbr_saturday: "So", sched_abbr_sunday: "Ne", sched_abbr_holiday: "Svátek",
@@ -113,6 +114,7 @@ const I18N = {
     tab_lines: "Spoje", tab_vacation: "Prázdniny", tab_notifications: "Notifikácie",
     no_lines: "Zatiaľ žiadne spoje. Pridajte prvý spoj tlačidlom nižšie.",
     add_line: "+ Pridať spoj", save_changes: "Uložiť zmeny", saving: "Ukladanie…",
+    unsaved_changes: "⚠ Máš neuložené zmeny – kým neklikneš na \"Uložiť zmeny\", pri zatvorení alebo obnovení stránky sa stratia.",
     load_failed: "Nepodarilo sa načítať údaje zastávky.", edit: "Upraviť", vac_count: "+ {0} prázdn.",
     sched_workday: "Pracovný deň", sched_saturday: "Sobota", sched_sunday: "Nedeľa", sched_holiday: "Štátny sviatok",
     sched_abbr_workday: "Prac. deň", sched_abbr_saturday: "So", sched_abbr_sunday: "Ne", sched_abbr_holiday: "Sviatok",
@@ -183,6 +185,7 @@ const I18N = {
     tab_lines: "Lines", tab_vacation: "Vacations", tab_notifications: "Notifications",
     no_lines: "No lines yet. Add your first line below.",
     add_line: "+ Add line", save_changes: "Save changes", saving: "Saving…",
+    unsaved_changes: "⚠ You have unsaved changes – they will be lost if you close or reload the page before clicking \"Save changes\".",
     load_failed: "Failed to load stop data.", edit: "Edit", vac_count: "+ {0} vac.",
     sched_workday: "Workday", sched_saturday: "Saturday", sched_sunday: "Sunday", sched_holiday: "Public holiday",
     sched_abbr_workday: "Workday", sched_abbr_saturday: "Sat", sched_abbr_sunday: "Sun", sched_abbr_holiday: "Holiday",
@@ -253,6 +256,7 @@ const I18N = {
     tab_lines: "Linien", tab_vacation: "Ferien", tab_notifications: "Benachrichtigungen",
     no_lines: "Noch keine Linien. Fügen Sie unten die erste Linie hinzu.",
     add_line: "+ Linie hinzufügen", save_changes: "Änderungen speichern", saving: "Wird gespeichert…",
+    unsaved_changes: "⚠ Es gibt ungespeicherte Änderungen – sie gehen verloren, wenn Sie die Seite schließen oder neu laden, bevor Sie auf \"Änderungen speichern\" klicken.",
     load_failed: "Daten der Haltestelle konnten nicht geladen werden.", edit: "Bearbeiten", vac_count: "+ {0} Ferien",
     sched_workday: "Werktag", sched_saturday: "Samstag", sched_sunday: "Sonntag", sched_holiday: "Feiertag",
     sched_abbr_workday: "Werktag", sched_abbr_saturday: "Sa", sched_abbr_sunday: "So", sched_abbr_holiday: "Feiertag",
@@ -323,6 +327,7 @@ const I18N = {
     tab_lines: "Lignes", tab_vacation: "Vacances", tab_notifications: "Notifications",
     no_lines: "Aucune ligne pour l'instant. Ajoutez la première ligne ci-dessous.",
     add_line: "+ Ajouter une ligne", save_changes: "Enregistrer les modifications", saving: "Enregistrement…",
+    unsaved_changes: "⚠ Vous avez des modifications non enregistrées – elles seront perdues si vous fermez ou rechargez la page avant de cliquer sur \"Enregistrer les modifications\".",
     load_failed: "Impossible de charger les données de l'arrêt.", edit: "Modifier", vac_count: "+ {0} vac.",
     sched_workday: "Jour ouvré", sched_saturday: "Samedi", sched_sunday: "Dimanche", sched_holiday: "Jour férié",
     sched_abbr_workday: "Ouvré", sched_abbr_saturday: "Sam", sched_abbr_sunday: "Dim", sched_abbr_holiday: "Férié",
@@ -393,6 +398,7 @@ const I18N = {
     tab_lines: "Líneas", tab_vacation: "Vacaciones", tab_notifications: "Notificaciones",
     no_lines: "Aún no hay líneas. Añada la primera línea abajo.",
     add_line: "+ Añadir línea", save_changes: "Guardar cambios", saving: "Guardando…",
+    unsaved_changes: "⚠ Tienes cambios sin guardar – se perderán si cierras o recargas la página antes de pulsar \"Guardar cambios\".",
     load_failed: "No se pudieron cargar los datos de la parada.", edit: "Editar", vac_count: "+ {0} vac.",
     sched_workday: "Día laborable", sched_saturday: "Sábado", sched_sunday: "Domingo", sched_holiday: "Festivo",
     sched_abbr_workday: "Laborable", sched_abbr_saturday: "Sáb", sched_abbr_sunday: "Dom", sched_abbr_holiday: "Festivo",
@@ -478,10 +484,33 @@ class MHDTimetablePanel extends HTMLElement {
     this._editingGroupIdx = null;
     this._editingNotificationIdx = null;
     this._helpVisible = false;
+    // Snapshot of the last successfully loaded/saved data, used to detect
+    // unsaved edits (see _hasUnsavedChanges) and warn before they're lost.
+    this._savedSnapshot = null;
+    this._onBeforeUnload = e => {
+      if (this._hasUnsavedChanges()) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
   }
 
   connectedCallback() {
+    window.addEventListener("beforeunload", this._onBeforeUnload);
     if (this._hass) this._init();
+  }
+
+  disconnectedCallback() {
+    window.removeEventListener("beforeunload", this._onBeforeUnload);
+  }
+
+  _hasUnsavedChanges() {
+    if (!this._data || this._savedSnapshot === null) return false;
+    try {
+      return JSON.stringify(this._data) !== this._savedSnapshot;
+    } catch (_e) {
+      return false;
+    }
   }
 
   set hass(hass) {
@@ -511,8 +540,10 @@ class MHDTimetablePanel extends HTMLElement {
         entry_id: this._selectedId,
       });
       this._ensureIds();
+      this._savedSnapshot = JSON.stringify(this._data);
     } catch (e) {
       this._data = null;
+      this._savedSnapshot = null;
     }
   }
 
@@ -882,6 +913,7 @@ class MHDTimetablePanel extends HTMLElement {
           <button class="add-btn">${this._t("add_line")}</button>
         `}
       </div>
+      ${this._hasUnsavedChanges() ? `<p class="unsaved-hint">${this._t("unsaved_changes")}</p>` : ""}
       <div class="footer">
         <button class="save-btn ${this._saving ? "saving" : ""}">
           ${this._saving ? this._t("saving") : this._t("save_changes")}
@@ -1725,6 +1757,7 @@ class MHDTimetablePanel extends HTMLElement {
         entry_id: this._selectedId,
         data: this._data,
       });
+      this._savedSnapshot = JSON.stringify(this._data);
     } catch (e) {
       alert(this._t("save_error") + (e.message || e));
     }
@@ -2024,6 +2057,13 @@ class MHDTimetablePanel extends HTMLElement {
       .notif-edit-cancel {
         background: none; border: none;
         color: var(--error-color, #e53935); cursor: pointer; font-size: 1em;
+      }
+
+      .unsaved-hint {
+        margin: 10px 0 0; padding: 8px 12px;
+        background: rgba(245, 124, 0, 0.15);
+        border: 1px solid #f57c00; border-radius: 7px;
+        color: var(--primary-text-color); font-size: 0.85em; font-weight: 600;
       }
 
       .footer {

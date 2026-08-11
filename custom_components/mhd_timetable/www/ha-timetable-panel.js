@@ -65,7 +65,7 @@ const I18N = {
     vac_grid_hint: "Jízdní řád pro <strong>{0}</strong>. Prázdné = použije se pracovní den.",
     chip_note_btn_title: "Jiná konečná / poznámka k odjezdu",
     chip_note_label: "Odjezd {0} – jiná konečná stanice",
-    chip_note_ph: "Např. Kukleny Albert (nepovinné)",
+    chip_note_ph: "Např. Nové Město (nepovinné)",
     chip_note_clear: "Odebrat poznámku",
     chip_skip_ph: "Nejede v (např. 1.1., 24.12.)",
     chip_skip_title: "Nejede: {0}",
@@ -138,7 +138,7 @@ const I18N = {
     vac_grid_hint: "Cestovný poriadok pre <strong>{0}</strong>. Prázdne = použije sa pracovný deň.",
     chip_note_btn_title: "Iná konečná / poznámka k odchodu",
     chip_note_label: "Odchod {0} – iná konečná stanica",
-    chip_note_ph: "Napr. Kukleny Albert (nepovinné)",
+    chip_note_ph: "Napr. Nové Mesto (nepovinné)",
     chip_note_clear: "Odobrať poznámku",
     chip_skip_ph: "Nejde v (napr. 1.1., 24.12.)",
     chip_skip_title: "Nejde: {0}",
@@ -211,7 +211,7 @@ const I18N = {
     vac_grid_hint: "Timetable for <strong>{0}</strong>. Empty = the workday schedule is used.",
     chip_note_btn_title: "Different terminus / note for this departure",
     chip_note_label: "Departure {0} – different terminus",
-    chip_note_ph: "E.g. Kukleny Albert (optional)",
+    chip_note_ph: "E.g. Downtown (optional)",
     chip_note_clear: "Remove note",
     chip_skip_ph: "Doesn't run on (e.g. 1.1, 24.12)",
     chip_skip_title: "Doesn't run: {0}",
@@ -284,7 +284,7 @@ const I18N = {
     vac_grid_hint: "Fahrplan für <strong>{0}</strong>. Leer = der Werktagsfahrplan wird verwendet.",
     chip_note_btn_title: "Andere Endstation / Hinweis für diese Abfahrt",
     chip_note_label: "Abfahrt {0} – andere Endstation",
-    chip_note_ph: "Z. B. Kukleny Albert (optional)",
+    chip_note_ph: "Z. B. Innenstadt (optional)",
     chip_note_clear: "Hinweis entfernen",
     chip_skip_ph: "Fährt nicht am (z. B. 1.1., 24.12.)",
     chip_skip_title: "Fährt nicht: {0}",
@@ -357,7 +357,7 @@ const I18N = {
     vac_grid_hint: "Horaire pour <strong>{0}</strong>. Vide = l'horaire de jour ouvré est utilisé.",
     chip_note_btn_title: "Terminus différent / note pour ce départ",
     chip_note_label: "Départ {0} – terminus différent",
-    chip_note_ph: "Ex. Kukleny Albert (facultatif)",
+    chip_note_ph: "Ex. Centre-ville (facultatif)",
     chip_note_clear: "Supprimer la note",
     chip_skip_ph: "Ne circule pas le (ex. 1.1, 24.12)",
     chip_skip_title: "Ne circule pas : {0}",
@@ -430,7 +430,7 @@ const I18N = {
     vac_grid_hint: "Horario para <strong>{0}</strong>. Vacío = se usa el horario laborable.",
     chip_note_btn_title: "Destino diferente / nota para esta salida",
     chip_note_label: "Salida {0} – destino diferente",
-    chip_note_ph: "Ej. Kukleny Albert (opcional)",
+    chip_note_ph: "Ej. Centro (opcional)",
     chip_note_clear: "Quitar nota",
     chip_skip_ph: "No circula el (ej. 1.1, 24.12)",
     chip_skip_title: "No circula: {0}",
@@ -627,9 +627,9 @@ class MHDTimetablePanel extends HTMLElement {
 
   // A minute entry is either a plain number (normal departure) or
   // { m, direction, skip_dates } for a departure that ends/continues
-  // somewhere other than the line's usual direction (e.g. "jede jen do
-  // Kukleny Albert") and/or does not run on specific calendar dates every
-  // year (e.g. a paper timetable's "nejede 1.1." footnote).
+  // somewhere other than the line's usual direction (a short-turn trip)
+  // and/or does not run on specific calendar dates every year (e.g. a
+  // paper timetable's "nejede 1.1." footnote).
   _minuteNum(entry) {
     return typeof entry === "object" && entry !== null ? entry.m : entry;
   }

@@ -67,6 +67,8 @@ const I18N = {
     chip_note_label: "Odjezd {0} – jiná konečná stanice",
     chip_note_ph: "Např. Kukleny Albert (nepovinné)",
     chip_note_clear: "Odebrat poznámku",
+    chip_skip_ph: "Nejede v (např. 1.1., 24.12.)",
+    chip_skip_title: "Nejede: {0}",
     add_line_btn: "Přidat spoj", save_line: "Uložit spoj", back: "← Zpět",
     enter_direction: "Zadejte směr (cílovou zastávku).",
     train_exists: "Vlakový spoj tímto směrem a kategorií už existuje. Upravte ho v seznamu spojů, nebo zvolte jinou kategorii.",
@@ -138,6 +140,8 @@ const I18N = {
     chip_note_label: "Odchod {0} – iná konečná stanica",
     chip_note_ph: "Napr. Kukleny Albert (nepovinné)",
     chip_note_clear: "Odobrať poznámku",
+    chip_skip_ph: "Nejde v (napr. 1.1., 24.12.)",
+    chip_skip_title: "Nejde: {0}",
     add_line_btn: "Pridať spoj", save_line: "Uložiť spoj", back: "← Späť",
     enter_direction: "Zadajte smer (cieľovú zastávku).",
     train_exists: "Vlakový spoj týmto smerom a kategóriou už existuje. Upravte ho v zozname spojov, alebo zvoľte inú kategóriu.",
@@ -209,6 +213,8 @@ const I18N = {
     chip_note_label: "Departure {0} – different terminus",
     chip_note_ph: "E.g. Kukleny Albert (optional)",
     chip_note_clear: "Remove note",
+    chip_skip_ph: "Doesn't run on (e.g. 1.1, 24.12)",
+    chip_skip_title: "Doesn't run: {0}",
     add_line_btn: "Add line", save_line: "Save line", back: "← Back",
     enter_direction: "Enter the direction (final stop).",
     train_exists: "A train line with this direction and category already exists. Edit it in the line list or pick a different category.",
@@ -280,6 +286,8 @@ const I18N = {
     chip_note_label: "Abfahrt {0} – andere Endstation",
     chip_note_ph: "Z. B. Kukleny Albert (optional)",
     chip_note_clear: "Hinweis entfernen",
+    chip_skip_ph: "Fährt nicht am (z. B. 1.1., 24.12.)",
+    chip_skip_title: "Fährt nicht: {0}",
     add_line_btn: "Linie hinzufügen", save_line: "Linie speichern", back: "← Zurück",
     enter_direction: "Geben Sie die Richtung (Endhaltestelle) ein.",
     train_exists: "Eine Zuglinie mit dieser Richtung und Gattung existiert bereits. Bearbeiten Sie sie in der Linienliste oder wählen Sie eine andere Gattung.",
@@ -351,6 +359,8 @@ const I18N = {
     chip_note_label: "Départ {0} – terminus différent",
     chip_note_ph: "Ex. Kukleny Albert (facultatif)",
     chip_note_clear: "Supprimer la note",
+    chip_skip_ph: "Ne circule pas le (ex. 1.1, 24.12)",
+    chip_skip_title: "Ne circule pas : {0}",
     add_line_btn: "Ajouter la ligne", save_line: "Enregistrer la ligne", back: "← Retour",
     enter_direction: "Saisissez la direction (terminus).",
     train_exists: "Une ligne de train avec cette direction et cette catégorie existe déjà. Modifiez-la dans la liste ou choisissez une autre catégorie.",
@@ -422,6 +432,8 @@ const I18N = {
     chip_note_label: "Salida {0} – destino diferente",
     chip_note_ph: "Ej. Kukleny Albert (opcional)",
     chip_note_clear: "Quitar nota",
+    chip_skip_ph: "No circula el (ej. 1.1, 24.12)",
+    chip_skip_title: "No circula: {0}",
     add_line_btn: "Añadir línea", save_line: "Guardar línea", back: "← Atrás",
     enter_direction: "Introduzca la dirección (parada final).",
     train_exists: "Ya existe una línea de tren con esta dirección y categoría. Edítela en la lista o elija otra categoría.",
@@ -614,22 +626,33 @@ class MHDTimetablePanel extends HTMLElement {
   }
 
   // A minute entry is either a plain number (normal departure) or
-  // { m, direction } for a departure that ends/continues somewhere other
-  // than the line's usual direction (e.g. "jede jen do Kukleny Albert").
+  // { m, direction, skip_dates } for a departure that ends/continues
+  // somewhere other than the line's usual direction (e.g. "jede jen do
+  // Kukleny Albert") and/or does not run on specific calendar dates every
+  // year (e.g. a paper timetable's "nejede 1.1." footnote).
   _minuteNum(entry) {
     return typeof entry === "object" && entry !== null ? entry.m : entry;
   }
   _minuteNote(entry) {
     return typeof entry === "object" && entry !== null ? (entry.direction || "") : "";
   }
+  _minuteSkipDates(entry) {
+    return typeof entry === "object" && entry !== null && Array.isArray(entry.skip_dates)
+      ? entry.skip_dates : [];
+  }
 
-  _currentChipNoteText() {
+  _currentChipEntry() {
     const ec = this._editingChipNote;
-    if (!ec) return "";
+    if (!ec) return null;
     const ld = this._getLineData();
     const arr = (ld[ec.type] && ld[ec.type][String(ec.hour)]) || [];
-    const entry = arr.find(e => this._minuteNum(e) === ec.minute);
-    return entry ? this._minuteNote(entry) : "";
+    return arr.find(e => this._minuteNum(e) === ec.minute) || null;
+  }
+  _currentChipNoteText() {
+    return this._minuteNote(this._currentChipEntry());
+  }
+  _currentChipSkipDatesText() {
+    return this._minuteSkipDates(this._currentChipEntry()).join(", ");
   }
 
   _schedColor(key) {
@@ -1221,7 +1244,12 @@ class MHDTimetablePanel extends HTMLElement {
         const sched = lineData[type] || {};
         const mins = (sched[String(h)] || sched[hStr] || []).slice();
         mins.sort((a, b) => this._minuteNum(a) - this._minuteNum(b))
-          .forEach(entry => allChips.push({ m: this._minuteNum(entry), note: this._minuteNote(entry), type }));
+          .forEach(entry => allChips.push({
+            m: this._minuteNum(entry),
+            note: this._minuteNote(entry),
+            skipDates: this._minuteSkipDates(entry),
+            type,
+          }));
       });
       allChips.sort((a, b) => a.m - b.m);
 
@@ -1237,12 +1265,17 @@ class MHDTimetablePanel extends HTMLElement {
           <div class="hour-hdr ${expanded ? "open" : ""}" data-hour="${h}" data-type="${activeType}">
             <span class="hour-lbl">${hStr}</span>
             <div class="chips">
-              ${allChips.map(({m, note, type}) => `
-                <span class="chip chip-${this._schedColor(type)} ${note ? "has-note" : ""}" data-h="${h}" data-m="${m}" data-type="${type}" title="${note}">
+              ${allChips.map(({m, note, skipDates, type}) => {
+                const hasException = !!note || skipDates.length > 0;
+                const titleParts = [];
+                if (note) titleParts.push(note);
+                if (skipDates.length) titleParts.push(this._t("chip_skip_title", this._formatSkipDatesForDisplay(skipDates)));
+                return `
+                <span class="chip chip-${this._schedColor(type)} ${hasException ? "has-note" : ""}" data-h="${h}" data-m="${m}" data-type="${type}" title="${titleParts.join(" · ")}">
                   ${String(m).padStart(2,"0")}
                   <button class="chip-note-btn" data-h="${h}" data-m="${m}" data-type="${type}" title="${this._t("chip_note_btn_title")}">✎</button>
-                </span>`
-              ).join("")}
+                </span>`;
+              }).join("")}
             </div>
             <span class="toggle">${expanded ? "▲" : "▼"}</span>
           </div>
@@ -1250,6 +1283,7 @@ class MHDTimetablePanel extends HTMLElement {
             <div class="chip-note-form" data-h="${h}">
               <span class="chip-note-form-lbl">${this._t("chip_note_label", `${String(noteEdit.hour).padStart(2,"0")}:${String(noteEdit.minute).padStart(2,"0")}`)}</span>
               <input class="chip-note-input" placeholder="${this._t("chip_note_ph")}" value="${this._currentChipNoteText()}">
+              <input class="chip-skip-input" placeholder="${this._t("chip_skip_ph")}" value="${this._currentChipSkipDatesText()}">
               <button class="chip-note-save">${this._t("save")}</button>
               <button class="chip-note-clear">${this._t("chip_note_clear")}</button>
               <button class="chip-note-cancel">✕</button>
@@ -1623,14 +1657,15 @@ class MHDTimetablePanel extends HTMLElement {
       e.stopPropagation();
       const ec = this._editingChipNote;
       const val = root.querySelector(".chip-note-input")?.value || "";
-      if (ec) this._setMinuteNote(ec.type, ec.hour, ec.minute, val);
+      const skipVal = root.querySelector(".chip-skip-input")?.value || "";
+      if (ec) this._setMinuteException(ec.type, ec.hour, ec.minute, val, skipVal);
       this._editingChipNote = null;
       this._render();
     });
     root.querySelector(".chip-note-clear")?.addEventListener("click", e => {
       e.stopPropagation();
       const ec = this._editingChipNote;
-      if (ec) this._setMinuteNote(ec.type, ec.hour, ec.minute, "");
+      if (ec) this._setMinuteException(ec.type, ec.hour, ec.minute, "", "");
       this._editingChipNote = null;
       this._render();
     });
@@ -1732,17 +1767,53 @@ class MHDTimetablePanel extends HTMLElement {
     this._syncCombinedSchedules(ld);
   }
 
-  // Attach (or clear) a "different terminus" note on an already-placed
-  // departure. Stored as {m, direction} instead of a plain number; empty
-  // note collapses it back to a plain number so unused lines stay tiny.
-  _setMinuteNote(type, hour, minute, note) {
+  // "1.1., 24.12." (as written on paper timetables) -> ["01-01", "12-24"].
+  // Silently drops anything that doesn't parse as D.M. / DD.MM.
+  _parseSkipDatesInput(str) {
+    return (str || "")
+      .split(/[,;]/)
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map(s => {
+        const m = s.match(/^(\d{1,2})\.\s*(\d{1,2})\.?$/);
+        if (!m) return null;
+        const day = parseInt(m[1], 10), month = parseInt(m[2], 10);
+        if (day < 1 || day > 31 || month < 1 || month > 12) return null;
+        return `${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      })
+      .filter(Boolean);
+  }
+  // ["01-01", "12-24"] -> "1.1., 24.12." for display in the edit field.
+  _formatSkipDatesForDisplay(arr) {
+    return (arr || [])
+      .map(md => {
+        const [month, day] = String(md).split("-");
+        return month && day ? `${parseInt(day, 10)}.${parseInt(month, 10)}.` : null;
+      })
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  // Attach (or clear) a "different terminus" and/or "doesn't run on these
+  // dates" exception on an already-placed departure. Stored as
+  // {m, direction, skip_dates} instead of a plain number; collapses back
+  // to a plain number when both are empty, so unused lines stay tiny.
+  _setMinuteException(type, hour, minute, note, skipDatesInput) {
     const ld = this._getLineData();
     const arr = ld[type] && ld[type][String(hour)];
     if (!arr) return;
     const idx = arr.findIndex(e => this._minuteNum(e) === minute);
     if (idx < 0) return;
     const trimmed = (note || "").trim();
-    arr[idx] = trimmed ? { m: minute, direction: trimmed } : minute;
+    const skipDates = this._parseSkipDatesInput(skipDatesInput);
+    if (!trimmed && skipDates.length === 0) {
+      arr[idx] = minute;
+    } else {
+      const entry = { m: minute };
+      if (trimmed) entry.direction = trimmed;
+      if (skipDates.length) entry.skip_dates = skipDates;
+      arr[idx] = entry;
+    }
     this._syncCombinedSchedules(ld);
   }
 
@@ -2207,7 +2278,7 @@ class MHDTimetablePanel extends HTMLElement {
         border-radius: 8px; border: 1px solid var(--primary-color);
       }
       .chip-note-form-lbl { font-size: 0.85em; font-weight: 600; color: var(--secondary-text-color); }
-      .chip-note-input {
+      .chip-note-input, .chip-skip-input {
         flex: 1; min-width: 160px;
         border: 1px solid var(--divider-color, rgba(0,0,0,.2));
         border-radius: 6px; padding: 6px 9px;

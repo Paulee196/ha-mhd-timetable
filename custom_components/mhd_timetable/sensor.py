@@ -52,22 +52,31 @@ def _matches_yearly_period(start: date, end: date, today: date) -> bool:
     return False
 
 
-def _minute_parts(entry) -> tuple[int, str]:
+def _minute_parts(entry) -> tuple[int, str, list[str]]:
     """A minute entry is either a plain int (normal departure) or
-    {"m": int, "direction": str} for a departure that ends/continues
-    somewhere other than the line's usual direction (e.g. a short-turn
-    trip). Returns (minute, direction_override); override is "" when none.
+    {"m": int, "direction": str, "skip_dates": [...]} for a departure that:
+      - ends/continues somewhere other than the line's usual direction
+        (e.g. a short-turn trip - "direction"), and/or
+      - does not run on specific calendar dates every year (e.g. a paper
+        timetable's "N1 - nejede 1.1." footnote - "skip_dates", each a
+        "MM-DD" string).
+    Returns (minute, direction_override, skip_dates); direction_override is
+    "" and skip_dates is [] when not set.
     """
     if isinstance(entry, dict):
         try:
             minute = int(entry.get("m", 0))
         except (TypeError, ValueError):
             minute = 0
-        return minute, str(entry.get("direction") or "").strip()
+        direction = str(entry.get("direction") or "").strip()
+        skip_dates = [
+            str(d).strip() for d in (entry.get("skip_dates") or []) if str(d).strip()
+        ]
+        return minute, direction, skip_dates
     try:
-        return int(entry), ""
+        return int(entry), "", []
     except (TypeError, ValueError):
-        return 0, ""
+        return 0, "", []
 
 
 def _matches_vacation_period(period: dict, today: date) -> bool:
@@ -479,11 +488,11 @@ def _compute_next_departures(data: dict, now: datetime, country: str = "CZ", str
         if effective:
             for hour_str, minutes in line_data[effective].items():
                 for entry in minutes:
-                    minute, override = _minute_parts(entry)
+                    minute, override, skip_dates = _minute_parts(entry)
                     dt = now.replace(
                         hour=int(hour_str), minute=minute, second=0, microsecond=0
                     )
-                    if dt >= now:
+                    if dt >= now and dt.strftime("%m-%d") not in skip_dates:
                         _add_departure(dt, override)
 
         effective_tomorrow = _effective_schedule(line_data, tomorrow_type)
@@ -491,10 +500,12 @@ def _compute_next_departures(data: dict, now: datetime, country: str = "CZ", str
             base = now + timedelta(days=1)
             for hour_str, minutes in line_data[effective_tomorrow].items():
                 for entry in minutes:
-                    minute, override = _minute_parts(entry)
-                    _add_departure(base.replace(
+                    minute, override, skip_dates = _minute_parts(entry)
+                    dt = base.replace(
                         hour=int(hour_str), minute=minute, second=0, microsecond=0
-                    ), override)
+                    )
+                    if dt.strftime("%m-%d") not in skip_dates:
+                        _add_departure(dt, override)
 
     next_buses.sort(key=lambda x: x["minutes_until"])
     return {
